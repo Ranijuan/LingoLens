@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import threading
 
 from aplicacion.rutas import recurso
 
@@ -28,6 +29,7 @@ class Nucleo:
         self._reset = self._dll.tp_reiniciar
         self._reset.argtypes = ()
         self._reset.restype = None
+        self._bloqueo = threading.Lock()
 
     def cambio(self, datos: bytes, ancho: int, alto: int, paso: int) -> bool:
         """Actualiza la captura guardada y avisa si cambió suficiente."""
@@ -39,10 +41,12 @@ class Nucleo:
         ):
             raise ValueError("La captura tiene dimensiones no válidas.")
         buffer = (ctypes.c_uint8 * len(datos)).from_buffer_copy(datos)
-        resultado = self._comparar(buffer, ancho, alto, paso, 36)
+        with self._bloqueo:
+            resultado = self._comparar(buffer, ancho, alto, paso, 36)
         if resultado < 0:
             raise RuntimeError("El núcleo C no pudo comparar la captura.")
         return resultado == 1
 
     def reiniciar(self) -> None:
-        self._reset()
+        with self._bloqueo:
+            self._reset()

@@ -107,5 +107,5 @@ void tp_reiniciar(void) {
 }
 
 const char *tp_version(void) {
-    return "1.0.0";
+    return "1.0.1";
 }

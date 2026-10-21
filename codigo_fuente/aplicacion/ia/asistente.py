@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import queue
 import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -36,10 +38,25 @@ class AsistenteLocal:
         self.modelo = modelo
         self._proceso: subprocess.Popen[bytes] | None = None
 
+    def _detener_proceso_propietario(self) -> None:
+        """Detiene el servidor que esta instancia inició, si sigue activo."""
+        proceso = self._proceso
+        self._proceso = None
+        if proceso is None or proceso.poll() is not None:
+            return
+        proceso.terminate()
+        try:
+            proceso.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            proceso.kill()
+            proceso.wait(timeout=2)
+
     def iniciar_servidor(self) -> bool:
         """Inicia Ollama oculto si su API local todavía no está activa."""
         if self.disponible():
             return True
+        if self._proceso is not None and self._proceso.poll() is None:
+            return self._esperar_servidor()
         ejecutable = buscar_ollama()
         if not ejecutable:
             return False
@@ -53,11 +70,16 @@ class AsistenteLocal:
             self._proceso = subprocess.Popen([ejecutable, "serve"], **opciones)
         except OSError:
             return False
+        return self._esperar_servidor()
+
+    def _esperar_servidor(self) -> bool:
+        """Espera unos segundos a que la API local acepte conexiones."""
         fin = time.monotonic() + 10
         while time.monotonic() < fin:
             if self.disponible():
                 return True
             time.sleep(0.25)
+        self._detener_proceso_propietario()
         return False
 
     def disponible(self) -> bool:
@@ -92,11 +114,35 @@ class AsistenteLocal:
             bufsize=1,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        assert proceso.stdout is not None
-        for linea in proceso.stdout:
-            if progreso:
-                progreso(linea.strip()[:180])
-        codigo = proceso.wait(timeout=900)
+        lineas: queue.Queue[str | None] = queue.Queue()
+
+        def leer_salida() -> None:
+            assert proceso.stdout is not None
+            for linea in proceso.stdout:
+                lineas.put(linea)
+            lineas.put(None)
+
+        lector = threading.Thread(target=leer_salida, daemon=True)
+        lector.start()
+        fin = time.monotonic() + 900
+        try:
+            while True:
+                restante = fin - time.monotonic()
+                if restante <= 0:
+                    raise subprocess.TimeoutExpired(proceso.args, 900)
+                try:
+                    linea = lineas.get(timeout=min(restante, 0.5))
+                except queue.Empty:
+                    continue
+                if linea is None:
+                    break
+                if progreso:
+                    progreso(linea.strip()[:180])
+            codigo = proceso.wait(timeout=max(0.1, fin - time.monotonic()))
+        except subprocess.TimeoutExpired as error:
+            proceso.kill()
+            proceso.wait(timeout=2)
+            raise RuntimeError("La descarga del modelo tardó demasiado.") from error
         if codigo != 0:
             raise RuntimeError("Ollama no pudo descargar el modelo de IA.")
 

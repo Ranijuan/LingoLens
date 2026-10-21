@@ -1,6 +1,17 @@
 # Registro de cambios
 
-Las horas corresponden a America/Bogota (UTC−05:00). El proyecto no tiene historial Git; las primeras horas se estiman por las fechas de modificación de los archivos fuente.
+Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
+
+## 2026-10-21 13:08 · Correcciones de resistencia y seguridad
+
+- `pantalla.py`: la extracción temporal de Tesseract ahora valida cada ruta del ZIP antes de escribirla y comprueba `tesseract.exe`, `eng.traineddata` y `spa.traineddata` antes de reutilizar una extracción anterior.
+- `asistente.py`: se evita iniciar servidores Ollama duplicados, se detiene el proceso que la aplicación inició si no queda disponible y el límite de 15 minutos para descargar modelos cubre también una salida sin actividad.
+- `puente_nucleo.py`: se añadió un bloqueo por instancia para proteger el estado estático del núcleo C si llegan capturas y reinicios desde hilos distintos.
+- `nucleo.c`: la versión expuesta por la DLL pasa a `1.0.1`.
+- `tests/test_pantalla.py`: se probaron deduplicación de OCR, rutas inseguras y recuperación de una extracción incompleta.
+- La suite con el entorno virtual del proyecto pasó 12 pruebas; también se comprobó `compileall` y `git diff --check`.
+
+**Resumen del proyecto:** se corrigieron riesgos de concurrencia, extracción incompleta, rutas no seguras y procesos Ollama abandonados. La aplicación queda lista para reconstruir el ejecutable `v1.0.1` y repetir la prueba real de interfaz.
 
 ## 2026-10-21 · README de GitHub y primeras pruebas automáticas
 

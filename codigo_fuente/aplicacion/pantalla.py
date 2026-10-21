@@ -28,6 +28,26 @@ class ResultadoPantalla:
 
 _BLOQUEO_TESSERACT = threading.Lock()
 _MAX_PALABRAS_OCR = 250
+_IDIOMAS_OCR = ("eng", "spa")
+
+
+def _tesseract_completo(destino: Path) -> bool:
+    """Comprueba que una extracción anterior tiene todos los archivos necesarios."""
+    return (destino / "tesseract.exe").is_file() and all(
+        (destino / "tessdata" / f"{idioma}.traineddata").is_file()
+        for idioma in _IDIOMAS_OCR
+    )
+
+
+def _validar_zip(archivo: zipfile.ZipFile, destino: Path) -> None:
+    """Rechaza entradas que intenten salir del directorio de extracción."""
+    raiz = destino.resolve()
+    for miembro in archivo.infolist():
+        candidato = (destino / miembro.filename).resolve()
+        try:
+            candidato.relative_to(raiz)
+        except ValueError as error:
+            raise ValueError("El paquete OCR contiene una ruta no segura.") from error
 
 
 def _extraer_tesseract(archivo: Path) -> tuple[Path, Path]:
@@ -35,18 +55,19 @@ def _extraer_tesseract(archivo: Path) -> tuple[Path, Path]:
     destino = Path(tempfile.gettempdir()) / "LingoLens" / "tesseract"
     ejecutable = destino / "tesseract.exe"
     datos = destino / "tessdata"
-    if ejecutable.is_file() and datos.is_dir():
+    if _tesseract_completo(destino):
         return ejecutable, datos
 
     with _BLOQUEO_TESSERACT:
-        if ejecutable.is_file() and datos.is_dir():
+        if _tesseract_completo(destino):
             return ejecutable, datos
         destino.parent.mkdir(parents=True, exist_ok=True)
         temporal = Path(tempfile.mkdtemp(prefix="lingolens-tesseract-"))
         try:
             with zipfile.ZipFile(archivo) as comprimido:
+                _validar_zip(comprimido, temporal)
                 comprimido.extractall(temporal)
-            if not (temporal / "tesseract.exe").is_file():
+            if not _tesseract_completo(temporal):
                 raise FileNotFoundError("El paquete interno de Tesseract está incompleto.")
             if destino.exists():
                 shutil.rmtree(destino)
