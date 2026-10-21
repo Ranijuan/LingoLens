@@ -2,8 +2,11 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
+import requests
+
 from aplicacion.ia.asistente import (
     MODELOS_RECOMENDADOS,
+    URL_CATALOGO_OLLAMA,
     AsistenteLocal,
     nombre_modelo_valido,
 )
@@ -79,6 +82,37 @@ class AsistenteTests(unittest.TestCase):
         self.assertEqual(popen.call_args.args[0], ["ollama.exe", "pull", "qwen3:8b"])
         self.assertFalse(popen.call_args.kwargs.get("shell", False))
         self.assertEqual(progreso, ["pulling manifest"])
+
+    def test_catalogo_remoto_filtra_busqueda_y_nombres_invalidos(self) -> None:
+        respuesta = Mock()
+        respuesta.json.return_value = {
+            "models": [
+                {
+                    "name": "qwen3:8b",
+                    "size": 5 * 1024**3,
+                    "details": {"family": "qwen", "parameter_size": "8B"},
+                },
+                {"name": "llama3.2:3b", "size": 2 * 1024**3},
+                {"name": "qwen; borrar", "size": 1},
+            ]
+        }
+        with patch(
+            "aplicacion.ia.asistente.requests.get", return_value=respuesta
+        ) as obtener:
+            modelos = AsistenteLocal().modelos_remotos("QWEN")
+
+        obtener.assert_called_once_with(URL_CATALOGO_OLLAMA, timeout=10)
+        self.assertEqual([modelo.nombre for modelo in modelos], ["qwen3:8b"])
+        self.assertIn("Familia: qwen.", modelos[0].descripcion)
+        self.assertIn("~5,0 GB", modelos[0].tamano)
+
+    def test_catalogo_remoto_informa_fallo_de_red(self) -> None:
+        with patch(
+            "aplicacion.ia.asistente.requests.get",
+            side_effect=requests.Timeout("sin conexión"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "catálogo online"):
+                AsistenteLocal().modelos_remotos()
 
 
 if __name__ == "__main__":

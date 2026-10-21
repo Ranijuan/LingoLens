@@ -2,6 +2,16 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 14:21 · Catálogo online y descarga de modelos v1.4.0
+
+- `asistente.py`: se añadió una consulta HTTPS al catálogo oficial de Ollama (`https://ollama.com/api/tags`) con timeout de 10 segundos, filtrado por nombre, límite de 80 resultados y validación antes de mostrar o descargar un modelo.
+- `asistente.py`: se añadieron conversiones de tamaño legibles, descripción de familia y capacidades, y mensajes claros cuando la red no responde. El catálogo recomendado local sigue disponible sin conexión.
+- `ventana.py`: **Modelos…** consulta el catálogo online al abrirse, permite buscar, escribir un nombre exacto y descargarlo en segundo plano. La búsqueda solo envía la consulta al endpoint fijo del catálogo; no envía el texto de la pantalla ni el chat.
+- `test_asistente.py`: se probaron respuesta remota, filtro de búsqueda, rechazo de nombres inseguros y caída de red.
+- `nucleo.c`: la DLL informa `1.4.0` para identificar esta distribución.
+
+**Resumen del cambio:** LingoLens puede descubrir modelos que todavía no están instalados y descargarlos mediante Ollama, con un modo local que sigue funcionando si no hay Internet.
+
 ## 2026-10-21 14:12 · Preparación de LingoLens v1.3.0
 
 - `nucleo.c`: la DLL informa `1.3.0`, que identifica la distribución con catálogo y descarga de modelos.

@@ -9,7 +9,7 @@ LingoLens lee texto visible en la pantalla, lo traduce, explica errores de gram�
 
 - **Carpeta del proyecto:** `C:\Users\PC_Juancho\proyectos\LingoLens`.
 - **Repositorio de LingoLens:** [github.com/Ranijuan/LingoLens](https://github.com/Ranijuan/LingoLens), con código fuente y workflow de pruebas.
-- **Release distribuida actualmente:** [LingoLens v1.3.0](https://github.com/Ranijuan/LingoLens/releases/tag/v1.3.0), con `LingoLens.exe` y el ZIP de distribución.
+- **Release distribuida actualmente:** [LingoLens v1.3.0](https://github.com/Ranijuan/LingoLens/releases/tag/v1.3.0), con `LingoLens.exe` y el ZIP de distribución. La versión v1.4.0 queda preparada en este cambio y se publicará después de reconstruir y verificar el ejecutable.
 - **Sistema de construcción observado:** Windows 11, Python 3.14.7 y MinGW-w64 GCC 16.1.0.
 
 Las primeras fechas históricas de este documento provienen de las fechas de modificación de los archivos; las entregas posteriores se relacionan con commits y releases publicados.
@@ -24,7 +24,7 @@ Las primeras fechas históricas de este documento provienen de las fechas de mod
 6. **Recordar lo aprendido:** SQLite conserva preferencias y vocabulario compatible. La pestaña **Mi progreso** permite guardar palabras nuevas. `perfil_aprendizaje.seguro` conserva métricas, palabras practicadas y actividad resumida cifradas con DPAPI; no guarda el texto completo de la pantalla ni de las conversaciones.
 7. **Mantener la ventana ágil:** captura, OCR y peticiones a la IA se ejecutan como trabajos de `QRunnable` dentro de un `QThreadPool` propio; al cerrar se cancelan las señales pendientes, se limpian los trabajos en cola y se espera brevemente a los trabajos rápidos.
 8. **Diagnosticar sin bloquear:** `diagnostico.py` comprueba el núcleo, OCR, datos, DPAPI, Ollama y el modelo en segundo plano. La falta de Ollama queda como advertencia y el OCR sigue disponible.
-9. **Añadir modelos poco a poco:** el botón **Modelos…** muestra opciones locales recomendadas, su tamaño aproximado y su estado. La descarga corre en segundo plano y la selección se comparte con la conversación.
+9. **Añadir modelos poco a poco:** el botón **Modelos…** muestra recomendaciones locales y consulta el catálogo oficial online de Ollama. Permite buscar o escribir un nombre, valida la entrada, muestra metadatos cuando están disponibles, descarga en segundo plano y comparte la selección con la conversación. Si la red falla, conserva el catálogo local.
 
 La interfaz usa la fuente del sistema **Segoe UI**, pestañas, tarjetas y burbujas de conversación. No requiere fuentes ni imágenes añadidas.
 
@@ -38,7 +38,7 @@ Las versiones de la tabla son las encontradas en este PC al preparar este docume
 | PySide6 / Qt for Python | 6.11.2; requisito `>=6.8` | Ventanas, controles, pestañas, temporizador, señales y trabajos en segundo plano. | [Repositorio](https://github.com/pyside/pyside-setup) · [Documentación](https://doc.qt.io/qtforpython-6/) |
 | MSS | 10.2.0; requisito `>=10.0` | Captura de los monitores. | [Repositorio](https://github.com/BoboTiG/python-mss) · [Documentación](https://python-mss.readthedocs.io/latest/) |
 | Pillow | 12.3.0; requisito `>=11.0` | Convierte, ajusta contraste, reduce tamaño y prepara imágenes para el OCR. | [Repositorio](https://github.com/python-pillow/Pillow) · [Documentación](https://pillow.readthedocs.io/en/stable/) |
-| Requests | 2.34.2; requisito `>=2.32` | Envía y recibe JSON por HTTP desde la API local de Ollama. | [Repositorio](https://github.com/psf/requests) · [Guía](https://requests.readthedocs.io/en/latest/user/quickstart/) |
+| Requests | 2.34.2; requisito `>=2.32` | Envía y recibe JSON por HTTP desde la API local de Ollama y el catálogo oficial HTTPS, con timeouts y errores controlados. | [Repositorio](https://github.com/psf/requests) · [Guía](https://requests.readthedocs.io/en/latest/user/quickstart/) |
 | PyInstaller | 6.22.3; requisito `>=6.12` | Empaqueta la aplicación y sus recursos en `LingoLens.exe`. Se usa al construir, no como servicio separado al ejecutar. | [Repositorio](https://github.com/pyinstaller/pyinstaller) · [Guía de uso](https://pyinstaller.org/en/stable/usage.html) |
 | Tesseract OCR | 5.4.0.20240606 | Reconoce texto en inglés o español. El ejecutable y sus datos de idioma se copian dentro del paquete. | [Repositorio](https://github.com/tesseract-ocr/tesseract) · [Guía de línea de comandos](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html) |
 | Ollama | Cliente 0.34.0; API local verificada el 2026-09-30 | La app llama a la API local. Los modelos `:cloud` pueden enrutar texto al servicio de Ollama Cloud; Ollama no está incluido en el `.exe`. | [Repositorio](https://github.com/ollama/ollama) · [API de chat](https://docs.ollama.com/api/chat) |
@@ -105,6 +105,16 @@ La línea `-std=c11 -O3 -Wall -Wextra -Werror` de `construir.ps1` selecciona C11
 - La suite pasó 25 pruebas; también pasaron `compileall` y `git diff --check`.
 
 **Resumen al terminar este cambio:** el usuario puede empezar con un modelo ligero y añadir otros desde la app cuando necesite más calidad.
+
+### 2026-10-21 14:21 — Catálogo online y descarga de modelos que aún no están instalados
+
+- `asistente.py` consulta `https://ollama.com/api/tags` con un timeout corto, acepta solo entradas con nombres compatibles con Ollama y limita la cantidad de modelos cargados en la interfaz.
+- `ventana.py` abre el gestor de modelos con recomendaciones locales, lanza la consulta remota fuera del hilo gráfico, mantiene los resultados si la red responde y muestra una alternativa cuando no responde.
+- La búsqueda se limita al catálogo oficial; el texto de pantalla y la conversación no forman parte de la petición. El comando de descarga sigue siendo una lista de argumentos sin `shell`.
+- `test_asistente.py` añadió dos pruebas de red simulada; la suite queda en 27 pruebas y el workflow conserva cobertura sin depender de Internet.
+- Se consultaron la [introducción oficial de la API de Ollama](https://docs.ollama.com/api/introduction), la [referencia oficial de la API](https://github.com/ollama/ollama/blob/main/docs/api.md) y el [catálogo oficial](https://ollama.com/library).
+
+**Resumen al terminar este cambio:** el usuario puede encontrar modelos nuevos desde LingoLens, instalarlos bajo demanda y continuar usando las recomendaciones locales cuando la conexión no esté disponible.
 
 ### 2026-09-30 — Estado actual, modelos y limpieza
 
@@ -179,9 +189,10 @@ Estas referencias oficiales describen las interfaces y herramientas elegidas. Si
 2. [Qt for Python: `QTabWidget`](https://doc.qt.io/qtforpython-6/PySide6/QtWidgets/QTabWidget.html): pestañas para separar traducción y conversación.
 3. [Ollama: API `POST /api/chat`](https://docs.ollama.com/api/chat): mensajes con roles, historial, respuesta y opciones de generación.
 4. [Ollama: modelo Qwen2.5](https://registry.ollama.com/library/qwen2.5): catálogo y etiquetas del modelo configurado.
-5. [Tesseract: uso por línea de comandos](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html): ejecución local, opciones OCR y datos de idiomas.
-6. [MSS: documentación](https://python-mss.readthedocs.io/latest/) y [Pillow: documentación](https://pillow.readthedocs.io/en/stable/): captura y preparación de imágenes.
-7. [Requests: guía rápida](https://requests.readthedocs.io/en/latest/user/quickstart/): solicitudes HTTP, JSON y manejo de errores.
-8. [Python: `sqlite3`](https://docs.python.org/3/library/sqlite3.html): acceso a SQLite desde la biblioteca estándar.
-9. [PyInstaller: opciones de empaquetado](https://pyinstaller.org/en/stable/usage.html): ejecutable de un archivo, incorporación de recursos y opciones de Windows.
-10. [GCC: opciones de optimización](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html): significado de las opciones de optimización del compilador.
+5. [Ollama: introducción de la API](https://docs.ollama.com/api/introduction) y [lista oficial de modelos](https://ollama.com/api/tags): URLs de la API local y hospedada, y nombres públicos de modelos disponibles.
+6. [Tesseract: uso por línea de comandos](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html): ejecución local, opciones OCR y datos de idiomas.
+7. [MSS: documentación](https://python-mss.readthedocs.io/latest/) y [Pillow: documentación](https://pillow.readthedocs.io/en/stable/): captura y preparación de imágenes.
+8. [Requests: guía rápida](https://requests.readthedocs.io/en/latest/user/quickstart/): solicitudes HTTP, JSON y manejo de errores.
+9. [Python: `sqlite3`](https://docs.python.org/3/library/sqlite3.html): acceso a SQLite desde la biblioteca estándar.
+10. [PyInstaller: opciones de empaquetado](https://pyinstaller.org/en/stable/usage.html): ejecutable de un archivo, incorporación de recursos y opciones de Windows.
+11. [GCC: opciones de optimización](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html): significado de las opciones de optimización del compilador.

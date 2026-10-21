@@ -17,11 +17,11 @@ La comprobación de primer arranque se ejecuta en un `Trabajo`, igual que OCR y 
 
 La ausencia de Ollama o de un modelo se considera una advertencia porque no impide capturar la pantalla ni usar **Texto propio**. La interfaz conserva el OCR, deja el botón **Diagnóstico** disponible y ofrece **Preparar IA local** para resolver el componente que falta.
 
-## Descarga gradual de modelos
+## Descarga gradual de modelos con Internet opcional
 
-`asistente.py` contiene un catálogo pequeño de modelos recomendados con nombre, tamaño aproximado y descripción. `nombre_modelo_valido()` limita los caracteres aceptados antes de formar la lista de argumentos para Ollama. `instalar_modelo()` recibe el modelo elegido y lee el progreso de `ollama pull` desde un trabajo secundario.
+`asistente.py` contiene un catálogo pequeño de modelos recomendados para que la app siga siendo útil sin conexión. `modelos_remotos()` consulta por HTTPS el endpoint oficial `https://ollama.com/api/tags`, convierte los datos a una estructura pequeña, descarta nombres inválidos y limita el resultado a 80 modelos. Si la consulta falla, solo se muestra un mensaje y se conserva el catálogo local. `nombre_modelo_valido()` limita los caracteres aceptados antes de formar la lista de argumentos para Ollama. `instalar_modelo()` recibe el modelo elegido y lee el progreso de `ollama pull` desde un trabajo secundario.
 
-La ventana usa **Modelos…** para mostrar el catálogo y los modelos ya instalados. El usuario puede descargar un modelo y luego pulsar **Usar este modelo**; la selección se sincroniza entre **Traducir y aprender** y **Conversar**. El catálogo no descarga modelos automáticamente al abrir la aplicación.
+La ventana usa **Modelos…** para consultar el catálogo online, mostrar los modelos locales y permitir una búsqueda por nombre. El usuario puede seleccionar una opción, escribir un nombre exacto compatible o descargar un modelo y luego pulsar **Usar este modelo**; la selección se sincroniza entre **Traducir y aprender** y **Conversar**. La búsqueda no envía el texto de la pantalla ni el historial del chat. La descarga se ejecuta en un hilo separado y Ollama conserva las descargas parciales cuando su cliente lo permite.
 
 ## Cómo funciona la conversación
 

@@ -36,6 +36,7 @@ from aplicacion.ia.asistente import (
     MODELO_POR_DEFECTO,
     MODELOS_RECOMENDADOS,
     AsistenteLocal,
+    nombre_modelo_valido,
 )
 from aplicacion.pantalla import ResultadoPantalla, capturar_y_leer
 from aplicacion.puente_nucleo import Nucleo
@@ -800,7 +801,7 @@ class VentanaPrincipal(QMainWindow):
     def _mostrar_modelos(self) -> None:
         dialogo = QDialog(self)
         dialogo.setWindowTitle("Modelos de IA local")
-        dialogo.setMinimumWidth(650)
+        dialogo.setMinimumWidth(700)
         caja = QVBoxLayout(dialogo)
         caja.setContentsMargins(22, 20, 22, 20)
         caja.setSpacing(12)
@@ -809,24 +810,33 @@ class VentanaPrincipal(QMainWindow):
         titulo.setObjectName("titulo")
         caja.addWidget(titulo)
         descripcion = QLabel(
-            "Los modelos se descargan desde Ollama y se guardan en este equipo. "
-            "Puedes empezar con el modelo ligero y añadir otros después."
+            "Consulta el catálogo oficial de Ollama y descarga solo los modelos que quieras. "
+            "También puedes escribir el nombre exacto de otro modelo compatible."
         )
         descripcion.setObjectName("subtitulo")
         descripcion.setWordWrap(True)
         caja.addWidget(descripcion)
 
+        busqueda = QLineEdit()
+        busqueda.setPlaceholderText("Buscar online: llama, qwen, gemma…")
+        busqueda.setToolTip("La búsqueda se hace en el catálogo oficial; no envía el texto de tu pantalla.")
+        caja.addWidget(busqueda)
+        acciones_busqueda = QHBoxLayout()
+        consultar = QPushButton("Buscar modelos online")
+        consultar.setObjectName("botonSecundario")
+        acciones_busqueda.addWidget(consultar)
+        acciones_busqueda.addStretch(1)
+        caja.addLayout(acciones_busqueda)
+
         selector = QComboBox()
         selector.setObjectName("selectorModeloDialogo")
-        catalogo = {modelo.nombre: modelo for modelo in MODELOS_RECOMENDADOS}
-        nombres = list(catalogo)
-        for nombre in self._modelos_instalados:
-            if nombre not in catalogo:
-                nombres.append(nombre)
-        for nombre in nombres:
-            modelo = catalogo.get(nombre)
-            etiqueta = f"{modelo.titulo} · {nombre}" if modelo else f"Instalado · {nombre}"
-            selector.addItem(etiqueta, nombre)
+        selector.setEditable(True)
+        selector.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        selector.lineEdit().setPlaceholderText("Elige un modelo o escribe su nombre")
+        catalogo_local = {modelo.nombre: modelo for modelo in MODELOS_RECOMENDADOS}
+        catalogo = dict(catalogo_local)
+        dialogo_cerrado = False
+        trabajos_dialogo: set[Trabajo] = set()
         caja.addWidget(selector)
 
         detalle = QLabel()
@@ -851,7 +861,7 @@ class VentanaPrincipal(QMainWindow):
         caja.addLayout(acciones)
 
         def modelo_seleccionado() -> str:
-            return str(selector.currentData() or "").strip()
+            return selector.currentText().strip()
 
         def actualizar_detalle() -> None:
             nombre = modelo_seleccionado()
@@ -861,15 +871,109 @@ class VentanaPrincipal(QMainWindow):
                 detalle.setText(
                     f"{modelo.titulo} · {modelo.tamano}\n{modelo.descripcion}"
                 )
+            elif nombre:
+                detalle.setText(
+                    "Modelo escrito manualmente. Ollama comprobará si existe al descargarlo."
+                )
             else:
-                detalle.setText("Modelo instalado en Ollama. Puedes seleccionarlo para usarlo.")
-            descargar.setEnabled(bool(nombre) and not instalado)
+                detalle.setText("Selecciona un modelo del catálogo o escribe un nombre compatible.")
+            valido = nombre_modelo_valido(nombre)
+            descargar.setEnabled(bool(nombre) and valido and not instalado)
             descargar.setText("Ya instalado" if instalado else "Descargar modelo")
             usar.setEnabled(instalado)
             if instalado:
                 estado.setText("Disponible en este equipo.")
+            elif nombre and not valido:
+                estado.setText("El nombre solo puede contener letras, números, _, -, :, ., /.")
             else:
                 estado.setText("Todavía no está instalado. La descarga puede ocupar varios GB.")
+
+        def guardar_trabajo_dialogo(trabajo: Trabajo) -> None:
+            trabajos_dialogo.add(trabajo)
+            trabajo.senales.terminado.connect(
+                lambda _: trabajos_dialogo.discard(trabajo)
+            )
+            trabajo.senales.fallo.connect(lambda _: trabajos_dialogo.discard(trabajo))
+            self._guardar_trabajo(trabajo)
+
+        def cancelar_trabajos_dialogo(_: int) -> None:
+            nonlocal dialogo_cerrado
+            dialogo_cerrado = True
+            for trabajo in tuple(trabajos_dialogo):
+                trabajo.cancelar()
+
+        def rellenar_selector() -> None:
+            elegido = modelo_seleccionado()
+            selector.blockSignals(True)
+            selector.clear()
+            nombres = list(catalogo)
+            for nombre in self._modelos_instalados:
+                if nombre not in catalogo:
+                    nombres.append(nombre)
+            for nombre in nombres:
+                modelo = catalogo.get(nombre)
+                selector.addItem(nombre, nombre)
+                if modelo:
+                    indice_modelo = selector.count() - 1
+                    selector.setItemData(
+                        indice_modelo,
+                        f"{modelo.titulo} · {modelo.tamano}",
+                        Qt.ItemDataRole.ToolTipRole,
+                    )
+            indice = selector.findData(elegido)
+            if indice >= 0:
+                selector.setCurrentIndex(indice)
+            elif elegido:
+                selector.setEditText(elegido)
+            selector.blockSignals(False)
+            actualizar_detalle()
+
+        def buscar_online() -> None:
+            consulta = busqueda.text()
+            consultar.setEnabled(False)
+            busqueda.setEnabled(False)
+            estado.setText("Consultando el catálogo oficial de Ollama…")
+
+            def consultar_en_segundo_plano(_: Callable[[str], None]) -> object:
+                return self._asistente.modelos_remotos(consulta)
+
+            trabajo = Trabajo(consultar_en_segundo_plano)
+
+            def catalogo_recibido(modelos: object) -> None:
+                if dialogo_cerrado:
+                    return
+                encontrados = tuple(modelos) if isinstance(modelos, tuple) else ()
+                catalogo.clear()
+                catalogo.update(catalogo_local)
+                catalogo.update(
+                    {
+                        modelo.nombre: modelo
+                        for modelo in encontrados
+                        if hasattr(modelo, "nombre")
+                    }
+                )
+                rellenar_selector()
+                consultar.setEnabled(True)
+                busqueda.setEnabled(True)
+                estado.setText(
+                    f"Catálogo online actualizado: {len(encontrados)} modelo(s) encontrados."
+                    if encontrados
+                    else "No hubo coincidencias; se mantiene el catálogo recomendado."
+                )
+
+            def catalogo_fallido(mensaje: str) -> None:
+                if dialogo_cerrado:
+                    return
+                consultar.setEnabled(True)
+                busqueda.setEnabled(True)
+                estado.setText(
+                    "No se pudo consultar Internet; puedes usar el catálogo local "
+                    f"o escribir un modelo exacto. {mensaje[:140]}"
+                )
+
+            trabajo.senales.terminado.connect(catalogo_recibido)
+            trabajo.senales.fallo.connect(catalogo_fallido)
+            guardar_trabajo_dialogo(trabajo)
 
         def usar_modelo() -> None:
             nombre = modelo_seleccionado()
@@ -902,25 +1006,36 @@ class VentanaPrincipal(QMainWindow):
 
             trabajo = Trabajo(descargar_en_segundo_plano)
             trabajo.senales.progreso.connect(estado.setText)
-            trabajo.senales.terminado.connect(
-                lambda descargado: self._modelo_descargado(
-                    str(descargado), selector, detalle, estado, descargar, usar
-                )
-            )
-            trabajo.senales.fallo.connect(
-                lambda mensaje: self._modelo_descarga_fallida(
-                    mensaje, selector, descargar, usar, estado
-                )
-            )
-            self._guardar_trabajo(trabajo)
+
+            def descarga_terminada(descargado: object) -> None:
+                if not dialogo_cerrado:
+                    self._modelo_descargado(
+                        str(descargado), selector, detalle, estado, descargar, usar
+                    )
+
+            def descarga_fallida(mensaje: str) -> None:
+                if not dialogo_cerrado:
+                    self._modelo_descarga_fallida(
+                        mensaje, selector, descargar, usar, estado
+                    )
+
+            trabajo.senales.terminado.connect(descarga_terminada)
+            trabajo.senales.fallo.connect(descarga_fallida)
+            guardar_trabajo_dialogo(trabajo)
 
         selector.currentIndexChanged.connect(actualizar_detalle)
+        selector.editTextChanged.connect(actualizar_detalle)
+        consultar.clicked.connect(buscar_online)
+        busqueda.returnPressed.connect(buscar_online)
         descargar.clicked.connect(descargar_modelo)
         usar.clicked.connect(usar_modelo)
         botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         botones.rejected.connect(dialogo.reject)
         caja.addWidget(botones)
+        dialogo.finished.connect(cancelar_trabajos_dialogo)
+        rellenar_selector()
         actualizar_detalle()
+        buscar_online()
         dialogo.exec()
 
     def _modelo_descargado(
@@ -938,7 +1053,7 @@ class VentanaPrincipal(QMainWindow):
         selector.setEnabled(True)
         indice = selector.findData(nombre)
         if indice < 0:
-            selector.addItem(f"Instalado · {nombre}", nombre)
+            selector.addItem(nombre, nombre)
             indice = selector.findData(nombre)
         selector.setCurrentIndex(indice)
         detalle.setText("Modelo descargado correctamente. Pulsa «Usar este modelo» para seleccionarlo.")

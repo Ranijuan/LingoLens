@@ -17,8 +17,11 @@ import requests
 
 
 URL_OLLAMA = "http://127.0.0.1:11434"
+URL_CATALOGO_OLLAMA = "https://ollama.com/api/tags"
 MODELO_POR_DEFECTO = "qwen2.5:1.5b"
 TIEMPO_ESPERA = 180
+TIEMPO_CATALOGO = 10
+MAX_MODELOS_REMOTOS = 80
 _MODELO_VALIDO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$")
 
 
@@ -57,6 +60,55 @@ MODELOS_RECOMENDADOS = (
 def nombre_modelo_valido(nombre: str) -> bool:
     """Acepta nombres de Ollama sin permitir argumentos o comandos extra."""
     return bool(_MODELO_VALIDO.fullmatch(nombre.strip()))
+
+
+def _tamano_legible(tamano: object) -> str:
+    """Convierte los bytes del catálogo remoto en una etiqueta breve."""
+    if not isinstance(tamano, (int, float)) or tamano <= 0:
+        return "Tamaño no indicado"
+    unidades = ("B", "KB", "MB", "GB", "TB")
+    valor = float(tamano)
+    unidad = unidades[0]
+    for indice, unidad_actual in enumerate(unidades):
+        unidad = unidad_actual
+        if valor < 1024 or indice == len(unidades) - 1:
+            break
+        valor /= 1024
+    if unidad == "B":
+        return f"~{int(valor)} {unidad}"
+    return f"~{valor:.1f} {unidad}".replace(".", ",")
+
+
+def _modelo_del_catalogo(item: object) -> ModeloRecomendado | None:
+    """Convierte una entrada externa en un modelo seguro para mostrar y descargar."""
+    if not isinstance(item, dict):
+        return None
+    nombre = str(item.get("name") or item.get("model") or "").strip()
+    if not nombre_modelo_valido(nombre):
+        return None
+    detalles = item.get("details")
+    detalles = detalles if isinstance(detalles, dict) else {}
+    familia = str(detalles.get("family") or "").strip()
+    parametros = str(detalles.get("parameter_size") or "").strip()
+    capacidades = item.get("capabilities")
+    capacidades = (
+        ", ".join(str(capacidad) for capacidad in capacidades[:4] if capacidad)
+        if isinstance(capacidades, list)
+        else ""
+    )
+    datos = ["Disponible en el catálogo oficial de Ollama."]
+    if familia:
+        datos.append(f"Familia: {familia}.")
+    if parametros:
+        datos.append(f"Tamaño del modelo: {parametros}.")
+    if capacidades:
+        datos.append(f"Capacidades: {capacidades}.")
+    return ModeloRecomendado(
+        nombre=nombre,
+        titulo="Disponible online",
+        tamano=_tamano_legible(item.get("size")),
+        descripcion=" ".join(datos),
+    )
 
 
 def buscar_ollama() -> str | None:
@@ -136,6 +188,36 @@ class AsistenteLocal:
             str(item.get("name", ""))
             for item in respuesta.json().get("models", [])
         }
+
+    def modelos_remotos(self, consulta: str = "") -> tuple[ModeloRecomendado, ...]:
+        """Consulta el catálogo oficial sin enviar texto del usuario a Ollama."""
+        termino = " ".join(str(consulta).split())[:80].casefold()
+        try:
+            respuesta = requests.get(URL_CATALOGO_OLLAMA, timeout=TIEMPO_CATALOGO)
+            respuesta.raise_for_status()
+            datos = respuesta.json()
+        except (requests.RequestException, ValueError) as error:
+            raise RuntimeError(
+                "No se pudo consultar el catálogo online de Ollama. "
+                "Comprueba la conexión a Internet."
+            ) from error
+        if not isinstance(datos, dict) or not isinstance(datos.get("models"), list):
+            raise RuntimeError("El catálogo online devolvió un formato no válido.")
+
+        modelos: dict[str, ModeloRecomendado] = {}
+        for item in datos["models"]:
+            modelo = _modelo_del_catalogo(item)
+            if modelo is None:
+                continue
+            if termino and termino not in modelo.nombre.casefold():
+                continue
+            modelos.setdefault(modelo.nombre, modelo)
+        return tuple(
+            sorted(
+                modelos.values(),
+                key=lambda modelo: (modelo.tamano == "Tamaño no indicado", modelo.nombre.casefold()),
+            )[:MAX_MODELOS_REMOTOS]
+        )
 
     def instalar_modelo(
         self,

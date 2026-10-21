@@ -30,7 +30,9 @@ La primera ejecución puede tardar más porque Windows extrae los componentes de
 
 Al abrirse, LingoLens comprueba el núcleo C, Tesseract, la carpeta de datos, el cifrado DPAPI, Ollama y el modelo seleccionado. El botón **Diagnóstico** permite repetir la comprobación y muestra una solución para cada advertencia. Si Ollama no responde, el OCR de pantalla y el modo de texto propio siguen disponibles.
 
-El botón **Modelos…** abre el catálogo integrado. Puedes descargar primero `qwen2.5:1.5b` para ocupar menos espacio, añadir después `qwen3:8b` si buscas más calidad o instalar `gemma4:26b` cuando tengas suficiente memoria. La aplicación valida el nombre y ejecuta `ollama pull` sin usar un shell.
+El botón **Modelos…** abre el catálogo integrado y consulta el catálogo oficial de Ollama por Internet. Puedes descargar primero `qwen2.5:1.5b` para ocupar menos espacio, buscar otros modelos por nombre o escribir un identificador exacto como `qwen3:8b`. La aplicación valida el nombre y ejecuta `ollama pull` sin usar un shell. Si no hay conexión, conserva las recomendaciones locales y los modelos ya instalados.
+
+La consulta remota solo obtiene nombres y metadatos públicos del catálogo de Ollama. No envía la captura de pantalla, el texto OCR ni la conversación. La descarga sí necesita que Ollama tenga acceso a Internet; puede ocupar varios GB y se guarda en la carpeta administrada por Ollama.
 
 ## En otro PC
 
