@@ -28,6 +28,7 @@ class InterfazTests(unittest.TestCase):
                 self.assertIsInstance(pestanas, QTabWidget)
                 self.assertEqual(pestanas.count(), 3)
                 self.assertEqual(ventana.boton_diagnostico.text(), "Diagnóstico")
+                self.assertEqual(ventana.boton_modelos.text(), "Modelos…")
 
                 ventana._diagnostico_terminado(
                     {

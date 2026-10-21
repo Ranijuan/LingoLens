@@ -30,6 +30,8 @@ La primera ejecución puede tardar más porque Windows extrae los componentes de
 
 Al abrirse, LingoLens comprueba el núcleo C, Tesseract, la carpeta de datos, el cifrado DPAPI, Ollama y el modelo seleccionado. El botón **Diagnóstico** permite repetir la comprobación y muestra una solución para cada advertencia. Si Ollama no responde, el OCR de pantalla y el modo de texto propio siguen disponibles.
 
+El botón **Modelos…** abre el catálogo integrado. Puedes descargar primero `qwen2.5:1.5b` para ocupar menos espacio, añadir después `qwen3:8b` si buscas más calidad o instalar `gemma4:26b` cuando tengas suficiente memoria. La aplicación valida el nombre y ejecuta `ollama pull` sin usar un shell.
+
 ## En otro PC
 
 Solo se copia `dist\LingoLens.exe`. El equipo destino necesita Ollama instalado y el modelo `qwen2.5:1.5b`. Si Ollama está instalado pero no tiene ese modelo, el botón **Preparar IA local** lo descarga. El archivo único contiene el intérprete de Python, la interfaz, Tesseract y las bibliotecas OCR en inglés y español; Ollama y el modelo se instalan aparte. Los modelos con etiqueta `:cloud` requieren autenticación y acceso en Ollama Cloud, y sus solicitudes se procesan fuera del equipo.

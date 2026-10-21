@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import queue
+import re
 import shutil
 import subprocess
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 
@@ -17,6 +19,44 @@ import requests
 URL_OLLAMA = "http://127.0.0.1:11434"
 MODELO_POR_DEFECTO = "qwen2.5:1.5b"
 TIEMPO_ESPERA = 180
+_MODELO_VALIDO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$")
+
+
+@dataclass(frozen=True, slots=True)
+class ModeloRecomendado:
+    """Información breve para ayudar a elegir un modelo local."""
+
+    nombre: str
+    titulo: str
+    tamano: str
+    descripcion: str
+
+
+MODELOS_RECOMENDADOS = (
+    ModeloRecomendado(
+        "qwen2.5:1.5b",
+        "Rápido y ligero",
+        "~1 GB",
+        "Para equipos modestos y primeras pruebas.",
+    ),
+    ModeloRecomendado(
+        "qwen3:8b",
+        "Equilibrado",
+        "~5,2 GB",
+        "Mejor calidad para conversación y explicaciones.",
+    ),
+    ModeloRecomendado(
+        "gemma4:26b",
+        "Avanzado",
+        "~18 GB",
+        "Respuestas más elaboradas; necesita más memoria y tiempo.",
+    ),
+)
+
+
+def nombre_modelo_valido(nombre: str) -> bool:
+    """Acepta nombres de Ollama sin permitir argumentos o comandos extra."""
+    return bool(_MODELO_VALIDO.fullmatch(nombre.strip()))
 
 
 def buscar_ollama() -> str | None:
@@ -97,15 +137,22 @@ class AsistenteLocal:
             for item in respuesta.json().get("models", [])
         }
 
-    def instalar_modelo(self, progreso: Any = None) -> None:
-        """Descarga el modelo pequeño mostrando el progreso recibido de Ollama."""
+    def instalar_modelo(
+        self,
+        modelo: str | None = None,
+        progreso: Callable[[str], None] | None = None,
+    ) -> None:
+        """Descarga un modelo validado y comunica el progreso recibido de Ollama."""
+        modelo_objetivo = (modelo or self.modelo).strip()
+        if not nombre_modelo_valido(modelo_objetivo):
+            raise ValueError("El nombre del modelo contiene caracteres no permitidos.")
         ejecutable = buscar_ollama()
         if not ejecutable:
             raise RuntimeError("Instala Ollama para preparar el asistente local.")
         if not self.iniciar_servidor():
             raise RuntimeError("No se pudo iniciar Ollama en este equipo.")
         proceso = subprocess.Popen(
-            [ejecutable, "pull", self.modelo],
+            [ejecutable, "pull", modelo_objetivo],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

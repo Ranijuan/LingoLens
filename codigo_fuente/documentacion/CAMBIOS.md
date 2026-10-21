@@ -2,6 +2,23 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 14:12 · Preparación de LingoLens v1.3.0
+
+- `nucleo.c`: la DLL informa `1.3.0`, que identifica la distribución con catálogo y descarga de modelos.
+- La próxima release incluirá el ejecutable reconstruido y el ZIP limpio con esta fase.
+
+**Resumen del cambio:** la versión queda alineada antes de empaquetar la descarga gradual de modelos.
+
+## 2026-10-21 14:12 · Catálogo y descarga gradual de modelos
+
+- `asistente.py`: se añadió un catálogo local con `qwen2.5:1.5b`, `qwen3:8b` y `gemma4:26b`, con tamaño aproximado y uso recomendado.
+- `asistente.py`: `instalar_modelo()` acepta el modelo elegido, valida el nombre y ejecuta `ollama pull` sin `shell`.
+- `ventana.py`: se añadió **Modelos…**, con estado instalado, descarga en segundo plano, progreso y selección sincronizada entre traducción y conversación.
+- `test_asistente.py` y `test_interfaz.py`: se probaron nombres inseguros, la llamada a `ollama pull`, el catálogo y el botón de modelos.
+- La suite local pasó 25 pruebas; también pasaron `compileall` y `git diff --check`.
+
+**Resumen del cambio:** el usuario puede comenzar con un modelo ligero y añadir modelos más capaces desde la aplicación, sin preparar comandos manualmente.
+
 ## 2026-10-21 13:59 · Preparación de LingoLens v1.2.0
 
 - `nucleo.c`: la DLL informa `1.2.0`, que identifica la distribución con diagnóstico de primer arranque.

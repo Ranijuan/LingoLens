@@ -32,7 +32,11 @@ from PySide6.QtWidgets import (
 
 from aplicacion.aprendizaje.registro import RegistroAprendizaje
 from aplicacion.diagnostico import ResultadoChequeo, comprobar_entorno
-from aplicacion.ia.asistente import MODELO_POR_DEFECTO, AsistenteLocal
+from aplicacion.ia.asistente import (
+    MODELO_POR_DEFECTO,
+    MODELOS_RECOMENDADOS,
+    AsistenteLocal,
+)
 from aplicacion.pantalla import ResultadoPantalla, capturar_y_leer
 from aplicacion.puente_nucleo import Nucleo
 
@@ -142,6 +146,7 @@ class VentanaPrincipal(QMainWindow):
         self._texto_pendiente = ""
         self._trabajos: set[Trabajo] = set()
         self._diagnostico: list[ResultadoChequeo] = []
+        self._modelos_instalados: tuple[str, ...] = ()
         self._historial_chat: list[dict[str, str]] = []
         self._chat_en_curso = False
         self._ultimo_mensaje_chat = ""
@@ -224,6 +229,13 @@ class VentanaPrincipal(QMainWindow):
         self.selector_modelo.setToolTip("Elige un modelo instalado en Ollama.")
         self.selector_modelo.currentIndexChanged.connect(self._cambio_modelo)
         controles.addWidget(self.selector_modelo)
+        self.boton_modelos = QPushButton("Modelos…")
+        self.boton_modelos.setObjectName("botonSecundario")
+        self.boton_modelos.setToolTip(
+            "Consulta, descarga y selecciona modelos locales de Ollama."
+        )
+        self.boton_modelos.clicked.connect(self._mostrar_modelos)
+        controles.addWidget(self.boton_modelos)
         controles.addStretch(1)
         self.boton_ia = QPushButton("Preparar IA local")
         self.boton_ia.setObjectName("botonSecundario")
@@ -785,6 +797,169 @@ class VentanaPrincipal(QMainWindow):
         caja.addWidget(botones)
         dialogo.exec()
 
+    def _mostrar_modelos(self) -> None:
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle("Modelos de IA local")
+        dialogo.setMinimumWidth(650)
+        caja = QVBoxLayout(dialogo)
+        caja.setContentsMargins(22, 20, 22, 20)
+        caja.setSpacing(12)
+
+        titulo = QLabel("Elige el modelo que quieres usar")
+        titulo.setObjectName("titulo")
+        caja.addWidget(titulo)
+        descripcion = QLabel(
+            "Los modelos se descargan desde Ollama y se guardan en este equipo. "
+            "Puedes empezar con el modelo ligero y añadir otros después."
+        )
+        descripcion.setObjectName("subtitulo")
+        descripcion.setWordWrap(True)
+        caja.addWidget(descripcion)
+
+        selector = QComboBox()
+        selector.setObjectName("selectorModeloDialogo")
+        catalogo = {modelo.nombre: modelo for modelo in MODELOS_RECOMENDADOS}
+        nombres = list(catalogo)
+        for nombre in self._modelos_instalados:
+            if nombre not in catalogo:
+                nombres.append(nombre)
+        for nombre in nombres:
+            modelo = catalogo.get(nombre)
+            etiqueta = f"{modelo.titulo} · {nombre}" if modelo else f"Instalado · {nombre}"
+            selector.addItem(etiqueta, nombre)
+        caja.addWidget(selector)
+
+        detalle = QLabel()
+        detalle.setObjectName("textoAyuda")
+        detalle.setWordWrap(True)
+        detalle.setMinimumHeight(68)
+        caja.addWidget(detalle)
+
+        estado = QLabel()
+        estado.setObjectName("nota")
+        estado.setWordWrap(True)
+        caja.addWidget(estado)
+
+        acciones = QHBoxLayout()
+        descargar = QPushButton("Descargar modelo")
+        descargar.setObjectName("botonPrincipal")
+        usar = QPushButton("Usar este modelo")
+        usar.setObjectName("botonSecundario")
+        acciones.addWidget(descargar)
+        acciones.addWidget(usar)
+        acciones.addStretch(1)
+        caja.addLayout(acciones)
+
+        def modelo_seleccionado() -> str:
+            return str(selector.currentData() or "").strip()
+
+        def actualizar_detalle() -> None:
+            nombre = modelo_seleccionado()
+            modelo = catalogo.get(nombre)
+            instalado = self._modelo_en_lista(nombre, list(self._modelos_instalados))
+            if modelo:
+                detalle.setText(
+                    f"{modelo.titulo} · {modelo.tamano}\n{modelo.descripcion}"
+                )
+            else:
+                detalle.setText("Modelo instalado en Ollama. Puedes seleccionarlo para usarlo.")
+            descargar.setEnabled(bool(nombre) and not instalado)
+            descargar.setText("Ya instalado" if instalado else "Descargar modelo")
+            usar.setEnabled(instalado)
+            if instalado:
+                estado.setText("Disponible en este equipo.")
+            else:
+                estado.setText("Todavía no está instalado. La descarga puede ocupar varios GB.")
+
+        def usar_modelo() -> None:
+            nombre = modelo_seleccionado()
+            instalado = next(
+                (
+                    existente
+                    for existente in self._modelos_instalados
+                    if existente == nombre or existente.startswith(nombre + ":")
+                ),
+                nombre,
+            )
+            if instalado:
+                self._seleccionar_modelo(instalado)
+                estado.setText(f"Modelo seleccionado: {instalado}.")
+
+        def descargar_modelo() -> None:
+            nombre = modelo_seleccionado()
+            if not nombre:
+                return
+            descargar.setEnabled(False)
+            usar.setEnabled(False)
+            selector.setEnabled(False)
+            estado.setText(f"Preparando la descarga de {nombre}…")
+
+            def descargar_en_segundo_plano(progreso: Callable[[str], None]) -> str:
+                if not self._asistente.iniciar_servidor():
+                    raise RuntimeError("No se pudo iniciar Ollama.")
+                self._asistente.instalar_modelo(nombre, progreso=progreso)
+                return nombre
+
+            trabajo = Trabajo(descargar_en_segundo_plano)
+            trabajo.senales.progreso.connect(estado.setText)
+            trabajo.senales.terminado.connect(
+                lambda descargado: self._modelo_descargado(
+                    str(descargado), selector, detalle, estado, descargar, usar
+                )
+            )
+            trabajo.senales.fallo.connect(
+                lambda mensaje: self._modelo_descarga_fallida(
+                    mensaje, selector, descargar, usar, estado
+                )
+            )
+            self._guardar_trabajo(trabajo)
+
+        selector.currentIndexChanged.connect(actualizar_detalle)
+        descargar.clicked.connect(descargar_modelo)
+        usar.clicked.connect(usar_modelo)
+        botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        botones.rejected.connect(dialogo.reject)
+        caja.addWidget(botones)
+        actualizar_detalle()
+        dialogo.exec()
+
+    def _modelo_descargado(
+        self,
+        nombre: str,
+        selector: QComboBox,
+        detalle: QLabel,
+        estado: QLabel,
+        descargar: QPushButton,
+        usar: QPushButton,
+    ) -> None:
+        self._modelos_instalados = tuple(sorted(set(self._modelos_instalados) | {nombre}))
+        self._rellenar_modelos(list(self._modelos_instalados))
+        self.estado.setText(f"Modelo descargado: {nombre}. Puedes usarlo desde Modelos…")
+        selector.setEnabled(True)
+        indice = selector.findData(nombre)
+        if indice < 0:
+            selector.addItem(f"Instalado · {nombre}", nombre)
+            indice = selector.findData(nombre)
+        selector.setCurrentIndex(indice)
+        detalle.setText("Modelo descargado correctamente. Pulsa «Usar este modelo» para seleccionarlo.")
+        estado.setText("Descarga terminada; el modelo está disponible en Ollama.")
+        descargar.setText("Ya instalado")
+        descargar.setEnabled(False)
+        usar.setEnabled(True)
+
+    def _modelo_descarga_fallida(
+        self,
+        mensaje: str,
+        selector: QComboBox,
+        descargar: QPushButton,
+        usar: QPushButton,
+        estado: QLabel,
+    ) -> None:
+        selector.setEnabled(True)
+        descargar.setEnabled(True)
+        usar.setEnabled(self._modelo_en_lista(str(selector.currentData() or ""), list(self._modelos_instalados)))
+        estado.setText(f"No se pudo descargar el modelo: {mensaje[:220]}")
+
     def _modelo_en_lista(self, nombre: str, modelos: list[str]) -> bool:
         return any(
             modelo == nombre or modelo.startswith(nombre + ":")
@@ -898,6 +1073,7 @@ class VentanaPrincipal(QMainWindow):
         por_clave = {resultado.clave: resultado for resultado in resultados}
         modelo = por_clave.get("modelo")
         modelos = list(modelo.modelos) if modelo else []
+        self._modelos_instalados = tuple(modelos)
         self._rellenar_modelos(modelos)
         ollama = por_clave.get("ollama")
         hay_modelo = modelo is not None and modelo.estado == "correcto"
@@ -940,7 +1116,7 @@ class VentanaPrincipal(QMainWindow):
                 or modelo.startswith(self._asistente.modelo + ":")
                 for modelo in modelos
             ):
-                self._asistente.instalar_modelo(progreso)
+                self._asistente.instalar_modelo(progreso=progreso)
             return True
 
         trabajo = Trabajo(instalar)

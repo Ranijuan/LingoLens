@@ -16,6 +16,8 @@ En la ventana:
 
 Pulsa **Diagnóstico** junto al estado de la IA para comprobar Windows, el almacenamiento local, el perfil cifrado, la DLL C, Tesseract, Ollama y el modelo elegido. Si Ollama no está disponible, LingoLens conserva el OCR y muestra cómo resolver la conexión.
 
+Pulsa **Modelos…** para consultar el catálogo local, ver el tamaño aproximado y el uso recomendado de cada opción, descargar modelos de forma gradual y seleccionar el que quieras utilizar. La descarga se realiza mediante Ollama y los modelos permanecen en el equipo.
+
 El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente se conecta al servicio local de Ollama; si eliges un modelo `:cloud`, Ollama puede enviarle el texto a su servicio cloud. El nivel y el vocabulario compatible se conservan en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`. Las métricas de aprendizaje se guardan cifradas en `%LOCALAPPDATA%\LingoLens\perfil_aprendizaje.seguro` mediante DPAPI del usuario actual de Windows; el archivo no contiene el texto completo de la pantalla ni de las conversaciones.
 
 ## Preparar el código fuente en Windows
@@ -48,7 +50,7 @@ Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evita
 
 - `nucleo/nucleo.c`: compara capturas en C y evita repetir OCR cuando la pantalla no cambió.
 - `aplicacion/pantalla.py`: captura la pantalla, tapa la ventana propia y lee texto localmente.
-- `aplicacion/ia/asistente.py`: pide al modelo seleccionado en Ollama una traducción, una explicación y respuestas para la conversación.
+- `aplicacion/ia/asistente.py`: pide al modelo seleccionado en Ollama una traducción, una explicación y respuestas para la conversación; también valida y descarga los modelos del catálogo.
 - `aplicacion/aprendizaje/registro.py`: conserva el nivel y el vocabulario local existente en SQLite.
 - `aplicacion/aprendizaje/perfil_seguro.py`: cifra métricas de aprendizaje y actividad con DPAPI de Windows.
 - `aplicacion/diagnostico.py`: comprueba las dependencias de primer arranque sin detener la aplicación.

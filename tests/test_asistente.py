@@ -2,7 +2,11 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
-from aplicacion.ia.asistente import AsistenteLocal
+from aplicacion.ia.asistente import (
+    MODELOS_RECOMENDADOS,
+    AsistenteLocal,
+    nombre_modelo_valido,
+)
 
 
 class AsistenteTests(unittest.TestCase):
@@ -39,6 +43,42 @@ class AsistenteTests(unittest.TestCase):
             AsistenteLocal().conversar(
                 [{"role": "assistant", "content": "Hola"}], "A2", []
             )
+
+    def test_catalogo_tiene_modelos_unicos_y_nombres_seguros(self) -> None:
+        nombres = [modelo.nombre for modelo in MODELOS_RECOMENDADOS]
+        self.assertEqual(len(nombres), len(set(nombres)))
+        self.assertTrue(nombre_modelo_valido("qwen2.5:1.5b"))
+        self.assertTrue(nombre_modelo_valido("org/modelo:latest"))
+        self.assertFalse(nombre_modelo_valido("qwen; rm -rf /"))
+        self.assertFalse(nombre_modelo_valido("modelo con espacios"))
+
+    def test_descarga_rechaza_nombre_no_valido_antes_de_iniciar_ollama(self) -> None:
+        asistente = AsistenteLocal()
+        with patch("aplicacion.ia.asistente.buscar_ollama") as buscar:
+            with self.assertRaises(ValueError):
+                asistente.instalar_modelo("qwen; comando-no-deseado")
+        buscar.assert_not_called()
+
+    def test_descarga_usa_ollama_pull_sin_shell(self) -> None:
+        class ProcesoFalso:
+            args = ["ollama", "pull", "qwen3:8b"]
+            stdout = iter(("pulling manifest\n",))
+
+            def wait(self, timeout: float) -> int:
+                return 0
+
+        proceso = ProcesoFalso()
+        progreso: list[str] = []
+        with (
+            patch("aplicacion.ia.asistente.buscar_ollama", return_value="ollama.exe"),
+            patch.object(AsistenteLocal, "iniciar_servidor", return_value=True),
+            patch("aplicacion.ia.asistente.subprocess.Popen", return_value=proceso) as popen,
+        ):
+            AsistenteLocal().instalar_modelo("qwen3:8b", progreso=progreso.append)
+
+        self.assertEqual(popen.call_args.args[0], ["ollama.exe", "pull", "qwen3:8b"])
+        self.assertFalse(popen.call_args.kwargs.get("shell", False))
+        self.assertEqual(progreso, ["pulling manifest"])
 
 
 if __name__ == "__main__":

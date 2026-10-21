@@ -1,7 +1,7 @@
 # LingoLens: documentación técnica y estado
 
 **Corte de la información:** 2026-10-21, zona horaria America/Bogota (UTC−05:00).
-**Actualización:** 2026-10-21; núcleo C, perfil cifrado, diagnóstico de primer arranque, interfaz, distribución y pruebas automatizadas revisados contra el código actual.
+**Actualización:** 2026-10-21; núcleo C, perfil cifrado, diagnóstico, gestor de modelos, interfaz, distribución y pruebas automatizadas revisados contra el código actual.
 
 ## 1. Proyecto y repositorio
 
@@ -9,7 +9,7 @@ LingoLens lee texto visible en la pantalla, lo traduce, explica errores de gram�
 
 - **Carpeta del proyecto:** `C:\Users\PC_Juancho\proyectos\LingoLens`.
 - **Repositorio de LingoLens:** [github.com/Ranijuan/LingoLens](https://github.com/Ranijuan/LingoLens), con código fuente y workflow de pruebas.
-- **Release distribuida actualmente:** [LingoLens v1.2.0](https://github.com/Ranijuan/LingoLens/releases/tag/v1.2.0), con `LingoLens.exe` y el ZIP de distribución.
+- **Release distribuida actualmente:** [LingoLens v1.3.0](https://github.com/Ranijuan/LingoLens/releases/tag/v1.3.0), con `LingoLens.exe` y el ZIP de distribución.
 - **Sistema de construcción observado:** Windows 11, Python 3.14.7 y MinGW-w64 GCC 16.1.0.
 
 Las primeras fechas históricas de este documento provienen de las fechas de modificación de los archivos; las entregas posteriores se relacionan con commits y releases publicados.
@@ -24,6 +24,7 @@ Las primeras fechas históricas de este documento provienen de las fechas de mod
 6. **Recordar lo aprendido:** SQLite conserva preferencias y vocabulario compatible. La pestaña **Mi progreso** permite guardar palabras nuevas. `perfil_aprendizaje.seguro` conserva métricas, palabras practicadas y actividad resumida cifradas con DPAPI; no guarda el texto completo de la pantalla ni de las conversaciones.
 7. **Mantener la ventana ágil:** captura, OCR y peticiones a la IA se ejecutan como trabajos de `QRunnable` dentro de un `QThreadPool` propio; al cerrar se cancelan las señales pendientes, se limpian los trabajos en cola y se espera brevemente a los trabajos rápidos.
 8. **Diagnosticar sin bloquear:** `diagnostico.py` comprueba el núcleo, OCR, datos, DPAPI, Ollama y el modelo en segundo plano. La falta de Ollama queda como advertencia y el OCR sigue disponible.
+9. **Añadir modelos poco a poco:** el botón **Modelos…** muestra opciones locales recomendadas, su tamaño aproximado y su estado. La descarga corre en segundo plano y la selección se comparte con la conversación.
 
 La interfaz usa la fuente del sistema **Segoe UI**, pestañas, tarjetas y burbujas de conversación. No requiere fuentes ni imágenes añadidas.
 
@@ -94,6 +95,16 @@ La línea `-std=c11 -O3 -Wall -Wextra -Werror` de `construir.ps1` selecciona C11
 - Se añadieron tres pruebas del diagnóstico y una comprobación de interfaz; la suite pasó 22 pruebas.
 
 **Resumen al terminar este cambio:** el primer arranque identifica las dependencias faltantes sin cerrar la aplicación y mantiene disponible la lectura OCR cuando la IA todavía no está preparada.
+
+### 2026-10-21 — Catálogo y descarga gradual de modelos
+
+- `asistente.py`: se añadió un catálogo local con `qwen2.5:1.5b`, `qwen3:8b` y `gemma4:26b`; cada opción incluye tamaño aproximado y uso recomendado.
+- `asistente.py`: `instalar_modelo()` acepta un modelo concreto, valida su nombre y conserva la descarga sin `shell`.
+- `ventana.py`: se añadió **Modelos…**, con estado instalado, descarga en segundo plano, progreso y selección sincronizada.
+- `test_asistente.py` y `test_interfaz.py`: se probaron nombres inseguros, `ollama pull`, catálogo y botón de modelos.
+- La suite pasó 25 pruebas; también pasaron `compileall` y `git diff --check`.
+
+**Resumen al terminar este cambio:** el usuario puede empezar con un modelo ligero y añadir otros desde la app cuando necesite más calidad.
 
 ### 2026-09-30 — Estado actual, modelos y limpieza
 

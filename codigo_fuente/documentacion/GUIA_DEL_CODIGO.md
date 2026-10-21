@@ -17,6 +17,12 @@ La comprobación de primer arranque se ejecuta en un `Trabajo`, igual que OCR y 
 
 La ausencia de Ollama o de un modelo se considera una advertencia porque no impide capturar la pantalla ni usar **Texto propio**. La interfaz conserva el OCR, deja el botón **Diagnóstico** disponible y ofrece **Preparar IA local** para resolver el componente que falta.
 
+## Descarga gradual de modelos
+
+`asistente.py` contiene un catálogo pequeño de modelos recomendados con nombre, tamaño aproximado y descripción. `nombre_modelo_valido()` limita los caracteres aceptados antes de formar la lista de argumentos para Ollama. `instalar_modelo()` recibe el modelo elegido y lee el progreso de `ollama pull` desde un trabajo secundario.
+
+La ventana usa **Modelos…** para mostrar el catálogo y los modelos ya instalados. El usuario puede descargar un modelo y luego pulsar **Usar este modelo**; la selección se sincroniza entre **Traducir y aprender** y **Conversar**. El catálogo no descarga modelos automáticamente al abrir la aplicación.
+
 ## Cómo funciona la conversación
 
 La pestaña **Conversar** está construida en `ventana.py`. Cada mensaje se muestra como una burbuja y se procesa en segundo plano para que la ventana siga respondiendo. `asistente.py` manda a Ollama el mensaje reciente, una parte corta del historial, el nivel elegido, los registros de vocabulario y las palabras que el perfil seguro marca como difíciles. El nivel A1–C1 se puede cambiar desde esta pestaña. Al cambiarlo, se limpia el historial de la charla y se inicia un contexto nuevo para que el nivel anterior no condicione las respuestas. **Nueva charla** también borra el historial de la conversación sin borrar el vocabulario ni las métricas cifradas.
