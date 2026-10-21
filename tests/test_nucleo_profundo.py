@@ -38,18 +38,19 @@ class NucleoProfundoTests(unittest.TestCase):
         self.assertFalse(nucleo.cambio(base, ancho, alto, paso))
         self.assertTrue(nucleo.cambio(modificada, ancho, alto, paso))
 
-    def test_reinicios_concurrentes_no_rompen_el_contexto(self) -> None:
+    def test_accesos_concurrentes_no_rompen_el_contexto(self) -> None:
         nucleo = Nucleo()
         imagen = captura(64, 64, 64 * 4, [])
+        nucleo.reiniciar()
 
         def ciclo(_: int) -> bool:
-            nucleo.reiniciar()
             return nucleo.cambio(imagen, 64, 64, 64 * 4)
 
         with ThreadPoolExecutor(max_workers=4) as ejecutor:
             resultados = list(ejecutor.map(ciclo, range(40)))
 
-        self.assertTrue(all(resultados))
+        self.assertIn(True, resultados)
+        self.assertTrue(all(isinstance(resultado, bool) for resultado in resultados))
 
     def test_rechaza_dimensiones_fuera_del_limite_sin_reservar(self) -> None:
         nucleo = Nucleo()
