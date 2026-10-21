@@ -35,7 +35,7 @@ El resultado es `dist\LingoLens.exe`, un único archivo que contiene Python, PyS
 Las pruebas no necesitan abrir la interfaz ni conectarse a Ollama. Comprueban el almacenamiento local, la interpretación de respuestas de la IA y el núcleo C:
 
 ```powershell
-python -m unittest discover -s tests -t . -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
 ```
 
 Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evitar otra dependencia.
