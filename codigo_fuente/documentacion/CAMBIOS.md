@@ -2,6 +2,14 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 13:35 · Verificación de GitHub Actions
+
+- La primera ejecución del workflow detectó que una prueba concurrente asumía que `reiniciar()` y `cambio()` eran una operación atómica entre hilos.
+- Se corrigió la prueba para validar el contrato real del núcleo: acceso concurrente protegido, resultados booleanos y ausencia de corrupción o excepciones.
+- La ejecución posterior de GitHub Actions terminó correctamente en el commit `e90eb2f`.
+
+**Resumen del cambio:** la automatización de GitHub ya pasa después de corregir una prueba demasiado estricta.
+
 ## 2026-10-21 13:29 · Núcleo profundo, perfil seguro y automatización
 
 - `nucleo.c` y `nucleo.h`: se reemplazó la imagen global por contextos independientes con creación, reinicio y destrucción explícitos. Esto evita que dos instancias compartan capturas y permite liberar la memoria nativa al cerrar.
