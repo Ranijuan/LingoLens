@@ -1,0 +1,42 @@
+name: Pruebas de LingoLens
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: codigo_fuente/requirements.txt
+
+      - name: Instalar dependencias
+        run: python -m pip install -r codigo_fuente/requirements.txt
+
+      - name: Compilar núcleo C
+        shell: pwsh
+        working-directory: codigo_fuente
+        run: .\construir.ps1
+
+      - name: Ejecutar pruebas
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          python -m unittest discover -s tests -t . -v
+
+      - name: Comprobar compilación Python
+        run: python -m compileall -q codigo_fuente tests
+
+      - name: Revisar espacios y parches inválidos
+        run: git diff --check

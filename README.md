@@ -4,7 +4,7 @@ Aplicación de escritorio para leer texto en inglés o español desde la pantall
 
 ## Descargar y ejecutar la aplicación
 
-La aplicación lista para usar se descarga desde la [Release más reciente](https://github.com/Ranijuan/LingoLens/releases/latest). Descarga `LingoLens-GitHub-v2.zip`, extráelo y abre `LingoLens.exe`.
+La aplicación lista para usar se descarga desde la [Release más reciente](https://github.com/Ranijuan/LingoLens/releases/latest). Descarga el ZIP que aparece allí, extráelo y abre `LingoLens.exe`.
 
 En la ventana:
 
@@ -12,8 +12,9 @@ En la ventana:
 2. Pulsa **Iniciar lectura**.
 3. Elige el idioma de destino junto al título **Traducción**; empieza en inglés. Mientras trabaja, el aviso aparece dentro del cuadro y luego se reemplaza por el resultado.
 4. Abre la pestaña **Conversar** para practicar o preguntar sobre gramática. Desde esa pestaña puedes cambiar el modelo y el nivel A1–C1; al cambiar el nivel, empieza un contexto nuevo para no arrastrar instrucciones anteriores. Escribe y pulsa **Enter** para enviar; usa **Shift+Enter** para dejar una línea nueva. La interfaz indica si el modelo es local o cloud.
+5. Abre **Mi progreso** para consultar actividad, palabras que conviene practicar y guardar vocabulario manualmente.
 
-El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente se conecta al servicio local de Ollama; si eliges un modelo `:cloud`, Ollama puede enviarle el texto a su servicio cloud. El nivel y los registros de vocabulario existentes se conservan en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`.
+El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente se conecta al servicio local de Ollama; si eliges un modelo `:cloud`, Ollama puede enviarle el texto a su servicio cloud. El nivel y el vocabulario compatible se conservan en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`. Las métricas de aprendizaje se guardan cifradas en `%LOCALAPPDATA%\LingoLens\perfil_aprendizaje.seguro` mediante DPAPI del usuario actual de Windows; el archivo no contiene el texto completo de la pantalla ni de las conversaciones.
 
 ## Preparar el código fuente en Windows
 
@@ -26,6 +27,7 @@ python -m venv .venv
 ollama pull qwen2.5:1.5b
 .\construir.ps1
 .\empaquetar.ps1
+.\distribuir.ps1
 ```
 
 El resultado es `dist\LingoLens.exe`, un único archivo que contiene Python, PySide6, el núcleo C, Tesseract y los datos OCR en inglés y español. PyInstaller extrae sus componentes a una carpeta temporal al abrirse; por eso el primer inicio puede tardar más. Ollama y el modelo de IA permanecen instalados por separado para no añadir casi 1 GB al ejecutable. Si el modelo falta, la app muestra **Preparar IA local**.
@@ -46,8 +48,10 @@ Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evita
 - `aplicacion/pantalla.py`: captura la pantalla, tapa la ventana propia y lee texto localmente.
 - `aplicacion/ia/asistente.py`: pide al modelo seleccionado en Ollama una traducción, una explicación y respuestas para la conversación.
 - `aplicacion/aprendizaje/registro.py`: conserva el nivel y el vocabulario local existente en SQLite.
+- `aplicacion/aprendizaje/perfil_seguro.py`: cifra métricas de aprendizaje y actividad con DPAPI de Windows.
 - `aplicacion/interfaz/ventana.py`: muestra resultados y ejecuta el trabajo lento en segundo plano.
-- `construir.ps1` y `empaquetar.ps1`: compilan C y empaquetan la aplicación en un ejecutable.
+- `construir.ps1`, `empaquetar.ps1` y `distribuir.ps1`: compilan C, empaquetan la aplicación y crean una distribución limpia.
+- `.github/workflows/pruebas.yml`: ejecuta las pruebas y comprobaciones en cada cambio de GitHub.
 
 Los conceptos del código se explican con comentarios y en `documentacion/GUIA_DEL_CODIGO.md`.
 

@@ -1,18 +1,18 @@
 # LingoLens: documentación técnica y estado
 
-**Corte de la información:** 2026-09-30, zona horaria America/Bogota (UTC−05:00).
-**Actualización:** 2026-09-30; versiones y verificaciones de modelos revisadas contra el código y las pruebas locales.
+**Corte de la información:** 2026-10-21, zona horaria America/Bogota (UTC−05:00).
+**Actualización:** 2026-10-21; núcleo C, perfil cifrado, interfaz, distribución y pruebas automatizadas revisados contra el código actual.
 
 ## 1. Proyecto y repositorio
 
 LingoLens lee texto visible en la pantalla, lo traduce, explica errores de gramática y ayuda a aprender vocabulario. La pestaña **Conversar** permite practicar con un tutor de IA local.
 
 - **Carpeta del proyecto:** `C:\Users\PC_Juancho\proyectos\LingoLens`.
-- **Repositorio de LingoLens:** existe como carpeta local. Esta carpeta y su carpeta superior no contienen `.git`; no hay historial de commits ni URL pública del proyecto.
-- **Ejecutable distribuido actualmente:** `LingoLens.exe` en la raíz del proyecto. Los ejecutables de construcción mencionados en la cronología se encuentran en `codigo_fuente\dist\LingoLens.exe`.
+- **Repositorio de LingoLens:** [github.com/Ranijuan/LingoLens](https://github.com/Ranijuan/LingoLens), con código fuente y workflow de pruebas.
+- **Release distribuida actualmente:** [LingoLens v1.0.1](https://github.com/Ranijuan/LingoLens/releases/tag/v1.0.1), con `LingoLens.exe` y el ZIP de distribución.
 - **Sistema de construcción observado:** Windows 11, Python 3.14.7 y MinGW-w64 GCC 16.1.0.
 
-Como no existe Git, las fechas de las primeras entregas de este documento provienen de las fechas de modificación de los archivos, no de commits firmados. La hora de la primera entrega solo puede reconstruirse aproximadamente con esas fechas.
+Las primeras fechas históricas de este documento provienen de las fechas de modificación de los archivos; las entregas posteriores se relacionan con commits y releases publicados.
 
 ## 2. Ideas principales y recorrido del programa
 
@@ -21,8 +21,8 @@ Como no existe Git, las fechas de las primeras entregas de este documento provie
 3. **Leer el texto:** Pillow prepara la imagen en memoria y Tesseract la convierte en texto. Se usan los datos OCR en inglés (`eng`) o español (`spa`), según el idioma elegido. La imagen se entrega a Tesseract por entrada estándar; el programa no guarda capturas en archivos.
 4. **Enseñar:** Python envía el texto reconocido a Ollama, que se comunica por `http://127.0.0.1:11434`. Para traducir, la respuesta estructurada incluye traducción y explicación; el idioma de destino se elige en la interfaz.
 5. **Conversar:** el tutor recibe el nivel, hasta 50 registros de vocabulario existentes, el texto reconocido más reciente y hasta 16 mensajes. Cambiar el nivel A1–C1 desde la pestaña limpia el historial y comienza un contexto nuevo. Los mensajes tienen límites de tamaño; cada llamada permite hasta 180 segundos para responder.
-6. **Recordar lo aprendido:** SQLite conserva el nivel y los registros de vocabulario que ya existan. La interfaz actual no ofrece guardar palabras nuevas. El historial del chat no se escribe en la base de datos y desaparece al cerrar la aplicación, pulsar **Nueva charla** o cambiar el nivel.
-7. **Mantener la ventana ágil:** captura, OCR y peticiones a la IA se ejecutan como trabajos de `QRunnable` dentro de `QThreadPool`; así no ocupan el hilo que dibuja y responde a la interfaz.
+6. **Recordar lo aprendido:** SQLite conserva preferencias y vocabulario compatible. La pestaña **Mi progreso** permite guardar palabras nuevas. `perfil_aprendizaje.seguro` conserva métricas, palabras practicadas y actividad resumida cifradas con DPAPI; no guarda el texto completo de la pantalla ni de las conversaciones.
+7. **Mantener la ventana ágil:** captura, OCR y peticiones a la IA se ejecutan como trabajos de `QRunnable` dentro de un `QThreadPool` propio; al cerrar se cancelan las señales pendientes, se limpian los trabajos en cola y se espera brevemente a los trabajos rápidos.
 
 La interfaz usa la fuente del sistema **Segoe UI**, pestañas, tarjetas y burbujas de conversación. No requiere fuentes ni imágenes añadidas.
 
@@ -53,24 +53,40 @@ La línea `-std=c11 -O3 -Wall -Wextra -Werror` de `construir.ps1` selecciona C11
 | Archivo o carpeta | Explicación breve |
 |---|---|
 | `aplicacion/main.py` | Inicia Qt y abre la ventana principal. |
-| `aplicacion/interfaz/ventana.py` | Traducción, pestaña de conversación, historial temporal y conexión de los trabajos de fondo. |
+| `aplicacion/interfaz/ventana.py` | Traducción, conversación, progreso, historial temporal y conexión de los trabajos de fondo. |
 | `aplicacion/ia/asistente.py` | Cliente de Ollama; interpreta resultados de traducción y conserva el contexto breve de la conversación. |
 | `aplicacion/pantalla.py` | Captura, procesa la imagen y ejecuta Tesseract. |
 | `aplicacion/qt_runtime_hook.py` | Registra las carpetas nativas de Qt antes de importar la interfaz empaquetada. |
 | `aplicacion/puente_nucleo.py` | Llama desde Python a las funciones exportadas por la DLL C mediante `ctypes`. |
 | `nucleo/nucleo.c` y `nucleo/nucleo.h` | Comparan las muestras de píxeles y administran la imagen anterior. |
-| `aplicacion/aprendizaje/registro.py` | Guarda nivel y vocabulario en SQLite. |
+| `aplicacion/aprendizaje/registro.py` | Guarda nivel, idioma y vocabulario en SQLite; conecta el perfil seguro con la aplicación. |
+| `aplicacion/aprendizaje/perfil_seguro.py` | Cifra métricas y actividad resumida con DPAPI de Windows. |
 | `construir.ps1` | Compila el núcleo C. |
 | `empaquetar.ps1` | Copia OCR, compila C y genera el ejecutable único. |
+| `distribuir.ps1` | Crea un ZIP limpio sin entorno virtual ni artefactos temporales. |
+| `.github/workflows/pruebas.yml` | Ejecuta compilación C, pruebas Python, compilación Python y `git diff --check` en GitHub. |
 | `LingoLens.spec` | Define el ejecutable onefile, conserva el ZIP OCR y filtra DLL ICU incompatibles. |
 | `requirements.txt` | Lista dependencias Python y sus versiones mínimas. |
 
 ## 5. Cronología y resultado de cada cambio
 
+### 2026-10-21 — Núcleo aislado, perfil cifrado, cierre y pruebas en GitHub
+
+- El núcleo C dejó de usar una imagen estática global y ahora crea un contexto independiente por instancia. La DLL valida dimensiones y tiene funciones explícitas de creación, reinicio y destrucción.
+- Se añadieron pruebas profundas para contextos independientes, padding por fila, reinicios concurrentes, límites de tamaño y 100 ciclos de capturas alternas.
+- La ventana usa un `QThreadPool` propio. Al cerrar, detiene el temporizador, cancela señales pendientes, limpia trabajos en cola y libera el contexto nativo cuando ya no hay tareas activas.
+- Se añadió `perfil_aprendizaje.seguro`, cifrado con DPAPI del usuario actual de Windows. Guarda métricas de palabras y actividad resumida sin copiar el texto completo de la pantalla o del chat.
+- Se añadió **Mi progreso**, con palabras difíciles, actividad reciente y guardado manual de vocabulario.
+- Se añadió `.github/workflows/pruebas.yml` para instalar dependencias, compilar C, ejecutar la suite, compilar Python y revisar el parche en cada cambio.
+- Se añadió `distribuir.ps1` para crear una distribución limpia sin `.venv`, `build`, `dist`, Tesseract extraído ni cachés.
+- La suite pasó 19 pruebas en Windows con Qt en modo `offscreen`; también pasaron `compileall` y la compilación C.
+
+**Resumen al terminar este cambio:** el núcleo ya soporta instancias aisladas y libera su memoria; la aplicación conserva un perfil de aprendizaje cifrado, tiene una vista de progreso, cierra las tareas pendientes con más control y cuenta con pruebas automáticas en GitHub.
+
 ### 2026-09-30 — Estado actual, modelos y limpieza
 
 - La traducción tiene idioma destino seleccionable, inglés por defecto, respuesta compacta y timeout de 180 s. Qwen2.5 1.5B, Qwen3 8B y Gemma 4 26B se comprobaron con una frase real; Gemma puede tardar más de 150 s al iniciar en frío.
-- En **Conversar**, cambiar el nivel A1–C1 sincroniza el control principal e inicia un contexto nuevo. El historial de la conversación no se conserva en SQLite.
+- En **Conversar**, cambiar el nivel A1–C1 sincroniza el control principal e inicia un contexto nuevo. El contenido completo de la conversación sigue siendo temporal; el perfil seguro conserva únicamente métricas y palabras resumidas.
 - El ejecutable final se reconstruyó y abrió el 2026-09-30; su huella se conserva en `documentacion/CAMBIOS.md`.
 - Se retiraron referencias de código y estilos sin uso. Se localizaron cachés Python antes del empaquetado final, pero al cierre no quedaba ninguna; no fue necesario borrarlas manualmente. Se conservaron los registros SQLite, informes `build`, entorno virtual, OCR, DLL y ejecutables.
 
@@ -90,7 +106,7 @@ La hora es el rango de modificación de los primeros archivos fuente observados;
 El rango corresponde a las fechas de modificación de `ventana.py`, `asistente.py` y al `.exe` generado.
 
 - Se creó una pestaña **Conversar**, con burbujas, preguntas sugeridas, envío con Enter y salto de línea con Shift+Enter.
-- El tutor adapta las respuestas al nivel y al vocabulario guardado. El historial corto se conserva solo en memoria, y un fallo deja el mensaje listo para reintentar.
+- El tutor adapta las respuestas al nivel, al vocabulario guardado y a las palabras difíciles del perfil seguro. El contenido completo del historial corto se conserva solo en memoria; un fallo deja el mensaje listo para reintentar.
 - Se suavizaron los colores, el espaciado y los tamaños de letra usando Segoe UI del sistema.
 - Se recompiló `nucleo.dll` y se generó `dist\LingoLens.exe` (186.614.300 bytes). `compileall` y el empaquetado finalizaron sin errores.
 
@@ -130,7 +146,7 @@ El rango corresponde a las fechas de modificación de `ventana.py`, `asistente.p
 - **Interfaz:** se probaron el destino configurable de traducción, el estado de espera dentro del cuadro y los cambios A1→A2→B1 con reinicio de contexto.
 - **Imágenes:** el OCR usa una captura real del escritorio procesada en memoria; no se crean imágenes artificiales ni se guarda la captura como archivo.
 - **Aprendizaje guardado:** nivel y palabras guardadas están en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`. El chat no persiste.
-- **Límite de verificación:** el proyecto no contiene una suite automatizada; las pruebas de Ollama e interfaz fueron manuales y controladas. El OCR se verificó en una sesión anterior con datos reales.
+- **Límite de verificación:** la suite automatizada cubre el núcleo C, SQLite, perfil seguro, OCR, Ollama simulado e interfaz en modo `offscreen`. La conexión real con Ollama y la captura de escritorio se verifican aparte porque requieren servicios y una sesión de Windows activos.
 
 ## 7. Fuentes técnicas consultadas
 

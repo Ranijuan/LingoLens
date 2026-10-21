@@ -2,6 +2,21 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 13:29 · Núcleo profundo, perfil seguro y automatización
+
+- `nucleo.c` y `nucleo.h`: se reemplazó la imagen global por contextos independientes con creación, reinicio y destrucción explícitos. Esto evita que dos instancias compartan capturas y permite liberar la memoria nativa al cerrar.
+- `puente_nucleo.py`: se configuraron las nuevas funciones C, se protegió cada contexto con un bloqueo y se añadió `cerrar()` para liberar la DLL de forma controlada.
+- `test_nucleo_profundo.py`: se añadieron pruebas para padding, contextos independientes, reinicios concurrentes, límites de tamaño y ciclos repetidos.
+- `perfil_seguro.py`: se añadió un archivo cifrado con DPAPI de Windows. Guarda nivel, idioma, palabras practicadas, dificultad y actividad resumida; no guarda el texto completo de pantalla o conversación.
+- `registro.py` y `ventana.py`: el perfil se actualiza desde traducciones, conversación, cambios de nivel y vocabulario guardado. La pestaña **Mi progreso** muestra el resumen, dificultades, historial reciente y un formulario para guardar palabras.
+- `Trabajo` y `closeEvent`: se cancelan señales pendientes, se limpian trabajos en cola y se espera brevemente a las tareas activas antes de liberar el núcleo.
+- `test_interfaz.py` y `test_perfil_seguro.py`: se probaron la interfaz en modo `offscreen`, el guardado de vocabulario y la persistencia cifrada.
+- `.github/workflows/pruebas.yml`: GitHub compila C, instala dependencias, ejecuta la suite, compila Python y revisa el parche en cada cambio.
+- `distribuir.ps1`: automatiza el ZIP limpio excluyendo entorno virtual, compilaciones, Tesseract extraído y cachés.
+- La suite pasó 19 pruebas; también pasaron `compileall`, la compilación C y una prueba real del script de distribución con 41 archivos.
+
+**Resumen del proyecto:** el núcleo tiene memoria aislada por instancia, el cierre libera recursos con más seguridad, el usuario dispone de un historial de aprendizaje cifrado y GitHub ya tiene una ruta automática para detectar regresiones.
+
 ## 2026-10-21 13:08 · Correcciones de resistencia y seguridad
 
 - `pantalla.py`: la extracción temporal de Tesseract ahora valida cada ruta del ZIP antes de escribirla y comprueba `tesseract.exe`, `eng.traineddata` y `spa.traineddata` antes de reutilizar una extracción anterior.

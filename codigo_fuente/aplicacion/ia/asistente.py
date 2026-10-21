@@ -208,6 +208,7 @@ class AsistenteLocal:
         palabras_conocidas: list[str],
         texto_actual: str = "",
         idioma_estudio: str = "inglés",
+        perfil_aprendizaje: dict[str, Any] | None = None,
     ) -> str:
         """Responde una conversación usando el nivel y vocabulario del estudiante."""
         if idioma_estudio == "español":
@@ -237,6 +238,17 @@ class AsistenteLocal:
             f"Idioma que estudia: {idioma_estudio}. Nivel: {nivel}. "
             f"Palabras guardadas por el estudiante: {conocidas}."
         )
+        perfil = perfil_aprendizaje or {}
+        dificiles = ", ".join(
+            str(palabra)
+            for palabra in perfil.get("palabras_dificiles", [])[:8]
+            if palabra
+        )
+        if dificiles:
+            contexto += (
+                " Palabras que el estudiante ha practicado con más dificultad: "
+                f"{dificiles}. Prioriza ejemplos breves con ellas."
+            )
         texto_pantalla = " ".join(texto_actual.split())[:700]
         if texto_pantalla:
             contexto += f" Texto que está leyendo ahora: {texto_pantalla}"

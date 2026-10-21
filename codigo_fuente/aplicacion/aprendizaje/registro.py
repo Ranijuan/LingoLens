@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from aplicacion.aprendizaje.perfil_seguro import PerfilSeguro
 from aplicacion.rutas import carpeta_datos
 
 
@@ -15,6 +16,7 @@ class RegistroAprendizaje:
 
     def __init__(self) -> None:
         self.ruta = carpeta_datos() / "aprendizaje.sqlite3"
+        self._perfil = PerfilSeguro(self.ruta.with_name("perfil_aprendizaje.seguro"))
         self._crear_tablas()
 
     @contextmanager
@@ -61,7 +63,9 @@ class RegistroAprendizaje:
                      repeticiones=vocabulario.repeticiones + 1""",
                 (palabra, significado[:300], ejemplo[:300], fecha),
             )
-            return int(db.execute("SELECT COUNT(*) FROM vocabulario").fetchone()[0])
+            cantidad = int(db.execute("SELECT COUNT(*) FROM vocabulario").fetchone()[0])
+        self._perfil.registrar("palabra_guardada", self.idioma(), palabra)
+        return cantidad
 
     def cantidad(self) -> int:
         with self._conectar() as db:
@@ -90,6 +94,7 @@ class RegistroAprendizaje:
                    ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor""",
                 (nivel,),
             )
+        self._perfil.establecer_contexto(nivel, self.idioma())
 
     def modelo(self) -> str:
         with self._conectar() as db:
@@ -108,3 +113,32 @@ class RegistroAprendizaje:
                    ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor""",
                 (nombre,),
             )
+
+    def idioma(self) -> str:
+        with self._conectar() as db:
+            fila = db.execute(
+                "SELECT valor FROM preferencias WHERE clave='idioma'"
+            ).fetchone()
+        return str(fila[0]).strip() if fila else "inglés"
+
+    def guardar_idioma(self, idioma: str) -> None:
+        idioma = idioma if idioma in {"inglés", "español"} else "inglés"
+        with self._conectar() as db:
+            db.execute(
+                """INSERT INTO preferencias(clave, valor) VALUES ('idioma', ?)
+                   ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor""",
+                (idioma,),
+            )
+        self._perfil.establecer_contexto(self.nivel(), idioma)
+
+    def registrar_actividad(
+        self,
+        tipo: str,
+        idioma: str,
+        texto: str,
+        dificultad: bool = False,
+    ) -> None:
+        self._perfil.registrar(tipo, idioma, texto, dificultad)
+
+    def resumen_aprendizaje(self) -> dict[str, object]:
+        return self._perfil.resumen()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -45,14 +47,25 @@ class Trabajo(QRunnable):
         super().__init__()
         self.senales = SenalesTrabajo()
         self._funcion = funcion
+        self._cancelado = threading.Event()
+
+    def cancelar(self) -> None:
+        """Evita emitir señales cuando la ventana ya se está cerrando."""
+        self._cancelado.set()
+
+    def _informar_progreso(self, mensaje: str) -> None:
+        if not self._cancelado.is_set():
+            self.senales.progreso.emit(mensaje)
 
     def run(self) -> None:
         try:
-            valor = self._funcion(self.senales.progreso.emit)
+            valor = self._funcion(self._informar_progreso)
         except Exception as error:  # La interfaz muestra el error y sigue abierta.
-            self.senales.fallo.emit(str(error))
+            if not self._cancelado.is_set():
+                self.senales.fallo.emit(str(error))
         else:
-            self.senales.terminado.emit(valor)
+            if not self._cancelado.is_set():
+                self.senales.terminado.emit(valor)
 
 
 class EntradaChat(QPlainTextEdit):
@@ -111,12 +124,14 @@ class VentanaPrincipal(QMainWindow):
         self._registro = RegistroAprendizaje()
         self._asistente = AsistenteLocal(self._registro.modelo() or MODELO_POR_DEFECTO)
         self._nucleo = Nucleo()
-        self._grupo = QThreadPool.globalInstance()
+        self._grupo = QThreadPool(self)
         self._grupo.setMaxThreadCount(3)
+        self._grupo.setExpiryTimeout(1000)
         self._reloj = QTimer(self)
         self._reloj.setInterval(1700)
         self._reloj.timeout.connect(self._leer_pantalla)
         self._captura_activa = False
+        self._cerrando = False
         self._captura_en_curso = False
         self._asistencia_en_curso = False
         self._ia_lista = False
@@ -290,10 +305,106 @@ class VentanaPrincipal(QMainWindow):
         pestanas = QTabWidget()
         pestanas.addTab(desplazable, "Traducir y aprender")
         pestanas.addTab(self._crear_chat(), "Conversar")
+        pestanas.addTab(self._crear_progreso(), "Mi progreso")
         self.setCentralWidget(pestanas)
         self.idioma.currentIndexChanged.connect(self._cambio_configuracion)
         self.nivel.currentTextChanged.connect(self._cambio_nivel)
         self._cambio_fuente()
+        self._actualizar_progreso()
+
+    def _crear_progreso(self) -> QWidget:
+        pagina = QWidget()
+        caja = QVBoxLayout(pagina)
+        caja.setContentsMargins(30, 24, 30, 24)
+        caja.setSpacing(16)
+
+        titulo = QLabel("Mi progreso")
+        titulo.setObjectName("titulo")
+        caja.addWidget(titulo)
+        descripcion = QLabel(
+            "LingoLens guarda señales de aprendizaje cifradas para adaptar las sugerencias. "
+            "No guarda el texto completo de la pantalla ni de tus conversaciones."
+        )
+        descripcion.setObjectName("subtitulo")
+        descripcion.setWordWrap(True)
+        caja.addWidget(descripcion)
+
+        self.progreso_resumen = QLabel()
+        self.progreso_resumen.setObjectName("textoAyuda")
+        self.progreso_resumen.setWordWrap(True)
+        caja.addWidget(tarjeta("Resumen", self.progreso_resumen))
+
+        self.progreso_dificultades = QLabel()
+        self.progreso_dificultades.setObjectName("textoAyuda")
+        self.progreso_dificultades.setWordWrap(True)
+        caja.addWidget(tarjeta("Palabras para practicar", self.progreso_dificultades))
+
+        self.progreso_historial = QLabel()
+        self.progreso_historial.setObjectName("textoAyuda")
+        self.progreso_historial.setWordWrap(True)
+        caja.addWidget(tarjeta("Actividad reciente", self.progreso_historial))
+
+        palabra = QLineEdit()
+        palabra.setPlaceholderText("Palabra")
+        significado = QLineEdit()
+        significado.setPlaceholderText("Significado")
+        boton_guardar = QPushButton("Guardar palabra")
+        boton_guardar.setObjectName("botonPrincipal")
+        boton_guardar.clicked.connect(self._guardar_palabra_desde_ui)
+        palabra.returnPressed.connect(self._guardar_palabra_desde_ui)
+        self.entrada_palabra = palabra
+        self.entrada_significado = significado
+        fila = QHBoxLayout()
+        fila.addWidget(palabra)
+        fila.addWidget(significado)
+        fila.addWidget(boton_guardar)
+        caja.addLayout(fila)
+
+        self.estado_progreso = QLabel()
+        self.estado_progreso.setObjectName("nota")
+        caja.addWidget(self.estado_progreso)
+        caja.addStretch(1)
+        return pagina
+
+    def _actualizar_progreso(self) -> None:
+        if not hasattr(self, "progreso_resumen"):
+            return
+        resumen = self._registro.resumen_aprendizaje()
+        self.progreso_resumen.setText(
+            f"Nivel: {resumen['nivel']} · Idioma: {resumen['idioma']}\n"
+            f"Actividades registradas: {resumen['interacciones']} · "
+            f"Palabras practicadas: {resumen['palabras_practicadas']}"
+        )
+        dificultades = resumen["palabras_dificiles"]
+        self.progreso_dificultades.setText(
+            ", ".join(str(palabra) for palabra in dificultades)
+            if dificultades
+            else "Todavía no hay palabras suficientes para recomendar una práctica."
+        )
+        actividades = resumen["historial_reciente"]
+        lineas = []
+        for actividad in reversed(actividades):
+            palabras = ", ".join(actividad.get("palabras", [])[:6]) or "sin palabras"
+            lineas.append(
+                f"{actividad.get('fecha', '')[:16]} · {actividad.get('tipo', '')} · {palabras}"
+            )
+        self.progreso_historial.setText("\n".join(lineas) or "No hay actividad registrada.")
+
+    def _guardar_palabra_desde_ui(self) -> None:
+        palabra = self.entrada_palabra.text().strip()
+        significado = self.entrada_significado.text().strip()
+        if not palabra or not significado:
+            self.estado_progreso.setText("Escribe la palabra y su significado antes de guardar.")
+            return
+        self._registro.guardar_palabra(
+            palabra,
+            significado,
+            "Palabra guardada por el estudiante.",
+        )
+        self.entrada_palabra.clear()
+        self.entrada_significado.clear()
+        self.estado_progreso.setText(f"«{palabra[:40]}» se añadió a tu vocabulario.")
+        self._actualizar_progreso()
 
     def _actualizar_estado_chat_ia(self) -> None:
         if not hasattr(self, "estado_chat_ia"):
@@ -506,11 +617,22 @@ class VentanaPrincipal(QMainWindow):
         historial = [dict(mensaje) for mensaje in self._historial_chat]
         nivel = self.nivel.currentText()
         conocidas = self._registro.palabras()
-        texto_actual = self._texto_actual
         idioma = str(self.idioma.currentData())
+        self._registro.registrar_actividad(
+            "conversacion",
+            idioma,
+            texto,
+            dificultad=any(
+                palabra in texto.casefold()
+                for palabra in ("corrige", "corregir", "error", "incorrecta")
+            ),
+        )
+        perfil = self._registro.resumen_aprendizaje()
+        self._actualizar_progreso()
+        texto_actual = self._texto_actual
         trabajo = Trabajo(
             lambda _: self._asistente.conversar(
-                historial, nivel, conocidas, texto_actual, idioma
+                historial, nivel, conocidas, texto_actual, idioma, perfil
             )
         )
         trabajo.senales.terminado.connect(self._respuesta_chat_lista)
@@ -572,6 +694,9 @@ class VentanaPrincipal(QMainWindow):
         self.estado_chat.setText("Conversación nueva · tu vocabulario guardado sigue disponible.")
 
     def _guardar_trabajo(self, trabajo: Trabajo) -> Trabajo:
+        if self._cerrando:
+            trabajo.cancelar()
+            return trabajo
         self._trabajos.add(trabajo)
         trabajo.senales.terminado.connect(lambda _: self._trabajos.discard(trabajo))
         trabajo.senales.fallo.connect(lambda _: self._trabajos.discard(trabajo))
@@ -889,6 +1014,8 @@ class VentanaPrincipal(QMainWindow):
         idioma = str(self.idioma.currentData())
         nivel = self.nivel.currentText()
         idioma_destino = str(self.selector_destino.currentData())
+        self._registro.registrar_actividad("traduccion", idioma, texto)
+        self._actualizar_progreso()
         self.texto_destino.setPlainText("La IA está traduciendo…")
         self.estado.clear()
         trabajo = Trabajo(
@@ -939,6 +1066,7 @@ class VentanaPrincipal(QMainWindow):
             )
             return
         self._registro.guardar_nivel(nivel)
+        self._actualizar_progreso()
         self._actualizar_nivel_chat()
         if nivel != self._nivel_chat_contexto:
             self._nivel_chat_contexto = nivel
@@ -968,13 +1096,21 @@ class VentanaPrincipal(QMainWindow):
         )
 
     def _cambio_configuracion(self, *_: object) -> None:
+        self._registro.guardar_idioma(str(self.idioma.currentData()))
         texto = self.texto_origen.toPlainText().strip()
         if texto and self._ia_lista:
             self._texto_actual = texto
             self._traducir(texto)
 
     def closeEvent(self, evento: Any) -> None:
+        self._cerrando = True
         self._reloj.stop()
+        for trabajo in tuple(self._trabajos):
+            trabajo.cancelar()
+        self._grupo.clear()
+        self._grupo.waitForDone(1000)
+        if self._grupo.activeThreadCount() == 0:
+            self._nucleo.cerrar()
         super().closeEvent(evento)
 
 
