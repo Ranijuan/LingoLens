@@ -35,6 +35,7 @@ class InterfazTests(unittest.TestCase):
                 self.assertEqual(ventana._registro.palabras(), ["book"])
 
                 ventana.close()
+                ventana.deleteLater()
                 self.aplicacion.processEvents()
 
 
