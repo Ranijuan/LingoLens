@@ -2,6 +2,13 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 13:46 · Versión del núcleo alineada con la distribución
+
+- `nucleo.c`: la función `tp_version()` ahora devuelve `1.1.0`, igual que la aplicación y el paquete de distribución de esta fase.
+- `ESTADO_Y_REFERENCIAS.md`: se actualizó la release documentada para que enlace con `v1.1.0`.
+
+**Resumen del cambio:** la versión que informa la DLL coincide con la versión que se va a distribuir; esto facilita diagnosticar instalaciones antiguas.
+
 ## 2026-10-21 13:39 · Cierre de Qt en CI
 
 - GitHub Actions confirmó las 19 pruebas, pero la primera ejecución devolvía código 1 al terminar el proceso aunque todas las aserciones fueran correctas.
