@@ -2,6 +2,14 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 13:39 · Cierre de Qt en CI
+
+- GitHub Actions confirmó las 19 pruebas, pero la primera ejecución devolvía código 1 al terminar el proceso aunque todas las aserciones fueran correctas.
+- `test_interfaz.py` ahora destruye explícitamente la ventana Qt después de probar el cierre; esto evita dejar objetos Qt vivos en Python 3.13 del runner.
+- La ejecución del workflow en el commit `e59595e` terminó correctamente.
+
+**Resumen del cambio:** las pruebas locales y las de GitHub terminan con código 0; la automatización queda estable también en Python 3.13.
+
 ## 2026-10-21 13:35 · Verificación de GitHub Actions
 
 - La primera ejecución del workflow detectó que una prueba concurrente asumía que `reiniciar()` y `cambio()` eran una operación atómica entre hilos.
