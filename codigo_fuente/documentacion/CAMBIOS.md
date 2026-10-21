@@ -9,9 +9,11 @@ Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etique
 - `puente_nucleo.py`: se añadió un bloqueo por instancia para proteger el estado estático del núcleo C si llegan capturas y reinicios desde hilos distintos.
 - `nucleo.c`: la versión expuesta por la DLL pasa a `1.0.1`.
 - `tests/test_pantalla.py`: se probaron deduplicación de OCR, rutas inseguras y recuperación de una extracción incompleta.
-- La suite con el entorno virtual del proyecto pasó 12 pruebas; también se comprobó `compileall` y `git diff --check`.
+- La suite con el entorno virtual del proyecto pasó 12 pruebas y cinco pasadas consecutivas, 60 ejecuciones en total durante esta ronda; también se comprobó `compileall` y `git diff --check`.
+- Se reconstruyó el ejecutable único: 122.759.996 bytes, SHA-256 `51AA2A86BD6083F8CE1EE798E51DDC76454CE93AF8169B79D701CDC2B3EA11A8`.
+- Se publicó [LingoLens v1.0.1](https://github.com/Ranijuan/LingoLens/releases/tag/v1.0.1) con el ZIP de 183.094.480 bytes y SHA-256 `3B53B578F5A569B970BCB4CB4660628A75376AA1E285BED9F10E7C35B7095F2D`.
 
-**Resumen del proyecto:** se corrigieron riesgos de concurrencia, extracción incompleta, rutas no seguras y procesos Ollama abandonados. La aplicación queda lista para reconstruir el ejecutable `v1.0.1` y repetir la prueba real de interfaz.
+**Resumen del proyecto:** se corrigieron riesgos de concurrencia, extracción incompleta, rutas no seguras y procesos Ollama abandonados. La aplicación `v1.0.1` está publicada, probada y lista para descargar.
 
 ## 2026-10-21 · README de GitHub y primeras pruebas automáticas
 
