@@ -1,0 +1,8 @@
+LingoLens.exe
+codigo_fuente/.venv/
+codigo_fuente/build/
+codigo_fuente/dist/
+codigo_fuente/recursos/tesseract/
+codigo_fuente/**/__pycache__/
+codigo_fuente/**/*.py[cod]
+codigo_fuente/**/*.log

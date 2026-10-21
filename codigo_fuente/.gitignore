@@ -1,0 +1,9 @@
+.venv/
+build/
+dist/
+__pycache__/
+*.py[cod]
+recursos/tesseract/*.dll
+recursos/tesseract/tesseract.exe
+recursos/tesseract/tessdata/*.traineddata
+nucleo/bin/*.dll

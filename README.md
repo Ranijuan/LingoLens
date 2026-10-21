@@ -4,19 +4,18 @@ Aplicación de escritorio para leer texto en inglés o español desde la pantall
 
 ## Ejecutar
 
-Abre `..\LingoLens.exe`. En la ventana:
+Abre `LingoLens.exe`. En la ventana:
 
 1. Selecciona el idioma que aparece en pantalla y tu nivel.
 2. Pulsa **Iniciar lectura**.
-3. La traducción, las correcciones y hasta dos palabras útiles aparecerán cuando cambie el texto.
-4. Pulsa **Guardar** en una palabra para que LingoLens la recuerde en tu PC.
-5. Abre la pestaña **Conversar** para practicar o preguntar sobre gramática. Escribe y pulsa **Enter** para enviar; usa **Shift+Enter** para dejar una línea nueva. La IA adapta sus respuestas a tu nivel y a las palabras que guardaste.
+3. Elige el idioma de destino junto al título **Traducción**; empieza en inglés. Mientras trabaja, el aviso aparece dentro del cuadro y luego se reemplaza por el resultado.
+4. Abre la pestaña **Conversar** para practicar o preguntar sobre gramática. Desde esa pestaña puedes cambiar el modelo y el nivel A1–C1; al cambiar el nivel, empieza un contexto nuevo para no arrastrar instrucciones anteriores. Escribe y pulsa **Enter** para enviar; usa **Shift+Enter** para dejar una línea nueva. La interfaz indica si el modelo es local o cloud.
 
-El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente funciona con Ollama local. El progreso de palabras se guarda en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`.
+El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente se conecta al servicio local de Ollama; si eliges un modelo `:cloud`, Ollama puede enviarle el texto a su servicio cloud. El nivel y los registros de vocabulario existentes se conservan en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`.
 
 ## Preparar el proyecto en Windows
 
-Necesitas Python 3.14, GCC de MinGW-w64, Tesseract instalado y Ollama. En PowerShell, desde esta carpeta:
+Necesitas Python 3.14, GCC de MinGW-w64, Tesseract instalado y Ollama. En PowerShell, desde la carpeta `codigo_fuente`:
 
 ```powershell
 python -m venv .venv
@@ -32,8 +31,8 @@ El resultado es `dist\LingoLens.exe`, un único archivo que contiene Python, PyS
 
 - `nucleo/nucleo.c`: compara capturas en C y evita repetir OCR cuando la pantalla no cambió.
 - `aplicacion/pantalla.py`: captura la pantalla, tapa la ventana propia y lee texto localmente.
-- `aplicacion/ia/asistente.py`: pide al modelo local una traducción, una corrección, vocabulario y respuestas para la conversación.
-- `aplicacion/aprendizaje/registro.py`: guarda nivel y palabras en una base SQLite pequeña.
+- `aplicacion/ia/asistente.py`: pide al modelo seleccionado en Ollama una traducción, una explicación y respuestas para la conversación.
+- `aplicacion/aprendizaje/registro.py`: conserva el nivel y el vocabulario local existente en SQLite.
 - `aplicacion/interfaz/ventana.py`: muestra resultados y ejecuta el trabajo lento en segundo plano.
 - `construir.ps1` y `empaquetar.ps1`: compilan C y empaquetan la aplicación en un ejecutable.
 
