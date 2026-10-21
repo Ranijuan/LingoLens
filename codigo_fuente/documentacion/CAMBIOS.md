@@ -8,10 +8,22 @@ Las horas corresponden a America/Bogota (UTC−05:00). El proyecto no tiene hist
 - Se documentó el comando de pruebas y se explicó que el ejecutable no forma parte del historial normal del repositorio.
 - Se añadieron siete pruebas con `unittest` para SQLite, respuestas JSON de Ollama, validaciones del asistente y detección de cambios del núcleo C.
 - La prueba del núcleo C compila automáticamente `nucleo.dll` si el repositorio recién clonado todavía no tiene la DLL.
+- Se añadieron pruebas de resistencia para 100 ciclos de capturas alternas y para un lote de 201 palabras con reapertura de SQLite.
 - Se corrigió el cierre de conexiones SQLite con un gestor de contexto; esto evita dejar el archivo de aprendizaje bloqueado en Windows.
 - Las pruebas pasan sin abrir la interfaz ni conectarse a Ollama.
 
 **Resumen del proyecto:** el repositorio ya explica cómo descargar la aplicación y cómo preparar el código. Las funciones principales tienen una primera comprobación automática y el almacenamiento local cierra sus conexiones correctamente.
+
+## 2026-10-21 · Pruebas intensivas de la aplicación
+
+- Se ejecutaron las nueve pruebas automáticas y después cinco pasadas consecutivas, 45 ejecuciones en total, sin fallos intermitentes.
+- La prueba de resistencia procesó 100 ciclos de capturas alternas en el núcleo C y comprobó que las capturas iguales se omiten.
+- SQLite conservó un lote de 201 palabras, limitó entradas largas y permitió reabrir la base sin bloqueo.
+- Se compiló el código Python con `compileall` sin errores.
+- Se abrió el ejecutable real y Windows mostró `LingoLens · Aprende mientras lees`.
+- Ollama respondió con los tres modelos instalados; una traducción y una corrección gramatical reales pasaron por el modelo `qwen2.5:1.5b`.
+
+**Resumen del proyecto:** las rutas principales de código, almacenamiento, núcleo C, ejecutable e IA local respondieron correctamente en esta ronda. Falta automatizar la comprobación del ejecutable y del OCR dentro de GitHub Actions.
 
 ## 2026-09-30 · Revisión de cierre y limpieza de residuos
 
