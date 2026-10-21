@@ -28,13 +28,15 @@
 
 La primera ejecución puede tardar más porque Windows extrae los componentes de la aplicación a una carpeta temporal. El programa no necesita privilegios de administrador.
 
+Al abrirse, LingoLens comprueba el núcleo C, Tesseract, la carpeta de datos, el cifrado DPAPI, Ollama y el modelo seleccionado. El botón **Diagnóstico** permite repetir la comprobación y muestra una solución para cada advertencia. Si Ollama no responde, el OCR de pantalla y el modo de texto propio siguen disponibles.
+
 ## En otro PC
 
 Solo se copia `dist\LingoLens.exe`. El equipo destino necesita Ollama instalado y el modelo `qwen2.5:1.5b`. Si Ollama está instalado pero no tiene ese modelo, el botón **Preparar IA local** lo descarga. El archivo único contiene el intérprete de Python, la interfaz, Tesseract y las bibliotecas OCR en inglés y español; Ollama y el modelo se instalan aparte. Los modelos con etiqueta `:cloud` requieren autenticación y acceso en Ollama Cloud, y sus solicitudes se procesan fuera del equipo.
 
 ## Errores comunes
 
-- **No se pudo iniciar la IA**: abre Ollama una vez o ejecuta `ollama serve` en una terminal; luego vuelve a pulsar **Preparar IA local**.
+- **Ollama no responde en el diagnóstico**: abre Ollama una vez o ejecuta `ollama serve` en una terminal; luego pulsa **Diagnóstico** y, si falta el modelo, **Preparar IA local**. El OCR puede seguir utilizándose sin la IA.
 - **Gemma tarda en responder la primera vez**: `gemma4:26b` ocupa unos 18 GB y en este equipo su primera traducción tardó hasta 151 segundos. Espera a que aparezca el resultado; evita volver a pulsar el botón mientras la solicitud sigue activa.
 - **La conversación falla después de cambiar A1/A2**: cambiar el nivel inicia una charla nueva automáticamente; vuelve a enviar el mensaje dentro del contexto nuevo.
 - **La ventana no reconoce texto**: elige el idioma correcto y aumenta el tamaño del texto de la aplicación que quieres leer.

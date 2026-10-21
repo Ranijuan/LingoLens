@@ -2,6 +2,16 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 13:57 · Diagnóstico de primer arranque y modo degradado
+
+- `aplicacion/diagnostico.py`: se añadieron comprobaciones de Windows, escritura local, DPAPI, núcleo C, Tesseract, Ollama y modelo instalado. Las comprobaciones devuelven estados y soluciones sin lanzar errores a la interfaz.
+- `perfil_seguro.py`: se añadió una prueba de DPAPI en memoria que no crea ni modifica el perfil del usuario.
+- `ventana.py`: se añadió el botón **Diagnóstico** y un diálogo limpio con el estado de cada componente. La falta de Ollama ya no impide usar OCR o **Texto propio**.
+- `test_diagnostico.py` y `test_interfaz.py`: se probaron entorno correcto, Ollama ausente, modelo ausente y la integración del botón.
+- La suite local pasó 22 pruebas; también pasaron `compileall` y `git diff --check`.
+
+**Resumen del cambio:** el primer arranque explica qué falta y cómo resolverlo; la aplicación conserva una función útil aunque la IA todavía no esté disponible.
+
 ## 2026-10-21 13:46 · Versión del núcleo alineada con la distribución
 
 - `nucleo.c`: la función `tp_version()` ahora devuelve `1.1.0`, igual que la aplicación y el paquete de distribución de esta fase.

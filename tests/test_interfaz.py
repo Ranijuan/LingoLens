@@ -8,6 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QTabWidget
 
+from aplicacion.diagnostico import ResultadoChequeo
 from aplicacion.interfaz.ventana import VentanaPrincipal
 
 
@@ -26,6 +27,30 @@ class InterfazTests(unittest.TestCase):
                 pestanas = ventana.centralWidget()
                 self.assertIsInstance(pestanas, QTabWidget)
                 self.assertEqual(pestanas.count(), 3)
+                self.assertEqual(ventana.boton_diagnostico.text(), "Diagnóstico")
+
+                ventana._diagnostico_terminado(
+                    {
+                        "resultados": [
+                            ResultadoChequeo(
+                                "ollama",
+                                "Ollama",
+                                "advertencia",
+                                "Ollama no responde.",
+                                "Abre Ollama.",
+                            ),
+                            ResultadoChequeo(
+                                "modelo",
+                                "Modelo de IA",
+                                "advertencia",
+                                "Falta el modelo.",
+                                "Prepara la IA.",
+                            ),
+                        ]
+                    }
+                )
+                self.assertFalse(ventana._ia_lista)
+                self.assertTrue(ventana.boton_diagnostico.isEnabled())
 
                 ventana.selector_fuente.setCurrentIndex(1)
                 self.assertFalse(ventana.texto_origen.isReadOnly())

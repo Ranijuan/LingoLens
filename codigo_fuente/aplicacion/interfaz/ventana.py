@@ -13,6 +13,8 @@ from PySide6.QtGui import QImage, QKeyEvent, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -29,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from aplicacion.aprendizaje.registro import RegistroAprendizaje
+from aplicacion.diagnostico import ResultadoChequeo, comprobar_entorno
 from aplicacion.ia.asistente import MODELO_POR_DEFECTO, AsistenteLocal
 from aplicacion.pantalla import ResultadoPantalla, capturar_y_leer
 from aplicacion.puente_nucleo import Nucleo
@@ -138,6 +141,7 @@ class VentanaPrincipal(QMainWindow):
         self._texto_actual = ""
         self._texto_pendiente = ""
         self._trabajos: set[Trabajo] = set()
+        self._diagnostico: list[ResultadoChequeo] = []
         self._historial_chat: list[dict[str, str]] = []
         self._chat_en_curso = False
         self._ultimo_mensaje_chat = ""
@@ -173,6 +177,13 @@ class VentanaPrincipal(QMainWindow):
         self.estado_ia = QLabel("Conectando IA local…")
         self.estado_ia.setObjectName("estado")
         encabezado.addWidget(self.estado_ia)
+        self.boton_diagnostico = QPushButton("Diagnóstico")
+        self.boton_diagnostico.setObjectName("botonSecundario")
+        self.boton_diagnostico.setToolTip(
+            "Comprueba OCR, núcleo C, almacenamiento, Ollama y el modelo elegido."
+        )
+        self.boton_diagnostico.clicked.connect(self._mostrar_diagnostico)
+        encabezado.addWidget(self.boton_diagnostico)
         principal.addLayout(encabezado)
 
         controles = QHBoxLayout()
@@ -704,18 +715,75 @@ class VentanaPrincipal(QMainWindow):
         return trabajo
 
     def _revisar_ia(self) -> None:
-        self.estado_ia.setText("Comprobando IA local…")
+        self.estado_ia.setText("Comprobando entorno…")
+        self.boton_diagnostico.setEnabled(False)
 
         def comprobar(_: Callable[[str], None]) -> dict[str, Any]:
-            if not self._asistente.iniciar_servidor():
-                return {"servidor": False, "modelos": []}
-            modelos = sorted(m for m in self._asistente.modelos_instalados() if m)
-            return {"servidor": True, "modelos": modelos}
+            return {"resultados": comprobar_entorno(self._asistente)}
 
         trabajo = Trabajo(comprobar)
-        trabajo.senales.terminado.connect(self._estado_ia_comprobado)
+        trabajo.senales.terminado.connect(self._diagnostico_terminado)
         trabajo.senales.fallo.connect(self._ia_error)
         self._guardar_trabajo(trabajo)
+
+    def _mostrar_diagnostico(self) -> None:
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle("Diagnóstico de LingoLens")
+        dialogo.setMinimumWidth(620)
+        caja = QVBoxLayout(dialogo)
+        caja.setContentsMargins(22, 20, 22, 20)
+        caja.setSpacing(12)
+
+        titulo = QLabel("Estado del equipo")
+        titulo.setObjectName("titulo")
+        caja.addWidget(titulo)
+        descripcion = QLabel(
+            "La aplicación puede seguir usando OCR aunque Ollama o el modelo no estén disponibles."
+        )
+        descripcion.setObjectName("subtitulo")
+        descripcion.setWordWrap(True)
+        caja.addWidget(descripcion)
+
+        if not self._diagnostico:
+            caja.addWidget(QLabel("El diagnóstico todavía está en curso."))
+        else:
+            simbolos = {"correcto": "✓", "advertencia": "!", "error": "×"}
+            for chequeo in self._diagnostico:
+                fila = QFrame()
+                fila.setObjectName(f"diagnostico_{chequeo.estado}")
+                horizontal = QHBoxLayout(fila)
+                horizontal.setContentsMargins(12, 10, 12, 10)
+                horizontal.setSpacing(10)
+                icono = QLabel(simbolos.get(chequeo.estado, "!"))
+                icono.setObjectName("diagnosticoIcono")
+                icono.setFixedWidth(22)
+                icono.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                horizontal.addWidget(icono)
+                textos = QVBoxLayout()
+                nombre = QLabel(chequeo.titulo)
+                nombre.setObjectName("tituloTarjeta")
+                textos.addWidget(nombre)
+                detalle = QLabel(chequeo.detalle)
+                detalle.setWordWrap(True)
+                textos.addWidget(detalle)
+                if chequeo.solucion:
+                    solucion = QLabel(f"Siguiente paso: {chequeo.solucion}")
+                    solucion.setObjectName("nota")
+                    solucion.setWordWrap(True)
+                    textos.addWidget(solucion)
+                horizontal.addLayout(textos, 1)
+                caja.addWidget(fila)
+
+        botones = QDialogButtonBox()
+        revisar = botones.addButton(
+            "Volver a comprobar",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        cerrar = botones.addButton(QDialogButtonBox.StandardButton.Close)
+        revisar.clicked.connect(lambda: (dialogo.accept(), self._revisar_ia()))
+        cerrar.clicked.connect(dialogo.reject)
+        caja.addWidget(botones)
+        dialogo.exec()
 
     def _modelo_en_lista(self, nombre: str, modelos: list[str]) -> bool:
         return any(
@@ -818,15 +886,23 @@ class VentanaPrincipal(QMainWindow):
                 "Texto propio seleccionado. Escribe o pega el texto y pulsa Traducir ahora."
             )
 
-    def _estado_ia_comprobado(self, resultado: object) -> None:
-        datos = resultado if isinstance(resultado, dict) else {
-            "servidor": bool(resultado),
-            "modelos": [],
-        }
-        modelos = [str(m) for m in datos.get("modelos", []) if m]
+    def _diagnostico_terminado(self, resultado: object) -> None:
+        datos = resultado if isinstance(resultado, dict) else {"resultados": []}
+        resultados = [
+            resultado
+            for resultado in datos.get("resultados", [])
+            if isinstance(resultado, ResultadoChequeo)
+        ]
+        self._diagnostico = resultados
+        self.boton_diagnostico.setEnabled(True)
+        por_clave = {resultado.clave: resultado for resultado in resultados}
+        modelo = por_clave.get("modelo")
+        modelos = list(modelo.modelos) if modelo else []
         self._rellenar_modelos(modelos)
-        hay_modelo = bool(modelos)
-        self._ia_lista = bool(datos.get("servidor")) and hay_modelo
+        ollama = por_clave.get("ollama")
+        hay_modelo = modelo is not None and modelo.estado == "correcto"
+        servidor = ollama is not None and ollama.estado == "correcto"
+        self._ia_lista = servidor and hay_modelo
         if self._ia_lista:
             actual = str(self.selector_modelo.currentData() or self._asistente.modelo)
             self._asistente.modelo = actual
@@ -836,13 +912,14 @@ class VentanaPrincipal(QMainWindow):
             if self._texto_actual:
                 self._traducir(self._texto_actual)
         else:
-            self.estado_ia.setText("IA local pendiente")
+            self.estado_ia.setText("OCR listo · IA pendiente")
             self.boton_ia.setText("Preparar IA local · ~1 GB")
             self.boton_ia.show()
         self._actualizar_estado_chat_ia()
 
     def _ia_error(self, mensaje: str) -> None:
         self._ia_lista = False
+        self.boton_diagnostico.setEnabled(True)
         self.estado_ia.setText("IA local no disponible")
         self._actualizar_estado_chat_ia()
         self.boton_ia.show()
@@ -958,7 +1035,8 @@ class VentanaPrincipal(QMainWindow):
                 self._traducir(resultado.texto)
         else:
             self.texto_destino.setPlainText(
-                "Prepara la IA local para traducir y recibir sugerencias."
+                "Texto capturado. La IA no está disponible; puedes seguir usando el OCR "
+                "o revisar el diagnóstico."
             )
 
     def _captura_fallida(self, mensaje: str) -> None:
@@ -998,7 +1076,7 @@ class VentanaPrincipal(QMainWindow):
         self._texto_actual = texto
         if not self._ia_lista:
             self.estado.setText(
-                "Prepara la IA local y elige un modelo instalado para traducir."
+                "La IA no está disponible. Puedes seguir usando el OCR o revisar el diagnóstico."
             )
             return
         self._traducir(texto)
@@ -1152,6 +1230,12 @@ QFrame#panelConversacion { background: #FFFFFF; border: 1px solid #E5EAE6; borde
 QScrollArea#areaChat, QWidget#contenidoMensajes { background: #F8FAF8; }
 QFrame#burbujaAsistente { background: #FFFFFF; border: 1px solid #E6ECE7; border-radius: 15px; }
 QFrame#burbujaUsuario { background: #E5F1E9; border: 1px solid #D8E9DE; border-radius: 15px; }
+QFrame#diagnostico_correcto { background: #EAF5EE; border: 1px solid #CBE4D3; border-radius: 10px; }
+QFrame#diagnostico_advertencia { background: #FFF7E1; border: 1px solid #F0DFA8; border-radius: 10px; }
+QFrame#diagnostico_error { background: #FCEBED; border: 1px solid #F0C9CF; border-radius: 10px; }
+QLabel#diagnosticoIcono { font-size: 14pt; font-weight: 700; color: #176A4F; }
+QFrame#diagnostico_advertencia QLabel#diagnosticoIcono { color: #A47716; }
+QFrame#diagnostico_error QLabel#diagnosticoIcono { color: #A23B4A; }
 QLabel#autorAsistente, QLabel#autorUsuario { font-size: 8pt; font-weight: 700; color: #668073; }
 QLabel#autorUsuario { color: #47715B; }
 QLabel#textoAsistente, QLabel#textoUsuario { color: #34473D; font-size: 10.5pt; }

@@ -1,7 +1,7 @@
 # LingoLens: documentación técnica y estado
 
 **Corte de la información:** 2026-10-21, zona horaria America/Bogota (UTC−05:00).
-**Actualización:** 2026-10-21; núcleo C, perfil cifrado, interfaz, distribución y pruebas automatizadas revisados contra el código actual.
+**Actualización:** 2026-10-21; núcleo C, perfil cifrado, diagnóstico de primer arranque, interfaz, distribución y pruebas automatizadas revisados contra el código actual.
 
 ## 1. Proyecto y repositorio
 
@@ -23,6 +23,7 @@ Las primeras fechas históricas de este documento provienen de las fechas de mod
 5. **Conversar:** el tutor recibe el nivel, hasta 50 registros de vocabulario existentes, el texto reconocido más reciente y hasta 16 mensajes. Cambiar el nivel A1–C1 desde la pestaña limpia el historial y comienza un contexto nuevo. Los mensajes tienen límites de tamaño; cada llamada permite hasta 180 segundos para responder.
 6. **Recordar lo aprendido:** SQLite conserva preferencias y vocabulario compatible. La pestaña **Mi progreso** permite guardar palabras nuevas. `perfil_aprendizaje.seguro` conserva métricas, palabras practicadas y actividad resumida cifradas con DPAPI; no guarda el texto completo de la pantalla ni de las conversaciones.
 7. **Mantener la ventana ágil:** captura, OCR y peticiones a la IA se ejecutan como trabajos de `QRunnable` dentro de un `QThreadPool` propio; al cerrar se cancelan las señales pendientes, se limpian los trabajos en cola y se espera brevemente a los trabajos rápidos.
+8. **Diagnosticar sin bloquear:** `diagnostico.py` comprueba el núcleo, OCR, datos, DPAPI, Ollama y el modelo en segundo plano. La falta de Ollama queda como advertencia y el OCR sigue disponible.
 
 La interfaz usa la fuente del sistema **Segoe UI**, pestañas, tarjetas y burbujas de conversación. No requiere fuentes ni imágenes añadidas.
 
@@ -61,6 +62,7 @@ La línea `-std=c11 -O3 -Wall -Wextra -Werror` de `construir.ps1` selecciona C11
 | `nucleo/nucleo.c` y `nucleo/nucleo.h` | Comparan las muestras de píxeles y administran la imagen anterior. |
 | `aplicacion/aprendizaje/registro.py` | Guarda nivel, idioma y vocabulario en SQLite; conecta el perfil seguro con la aplicación. |
 | `aplicacion/aprendizaje/perfil_seguro.py` | Cifra métricas y actividad resumida con DPAPI de Windows. |
+| `aplicacion/diagnostico.py` | Comprueba dependencias de primer arranque y devuelve soluciones legibles. |
 | `construir.ps1` | Compila el núcleo C. |
 | `empaquetar.ps1` | Copia OCR, compila C y genera el ejecutable único. |
 | `distribuir.ps1` | Crea un ZIP limpio sin entorno virtual ni artefactos temporales. |
@@ -82,6 +84,16 @@ La línea `-std=c11 -O3 -Wall -Wextra -Werror` de `construir.ps1` selecciona C11
 - La suite pasó 19 pruebas en Windows con Qt en modo `offscreen`; también pasaron `compileall` y la compilación C.
 
 **Resumen al terminar este cambio:** el núcleo ya soporta instancias aisladas y libera su memoria; la aplicación conserva un perfil de aprendizaje cifrado, tiene una vista de progreso, cierra las tareas pendientes con más control y cuenta con pruebas automáticas en GitHub.
+
+### 2026-10-21 — Diagnóstico de primer arranque y modo degradado
+
+- Se añadió `aplicacion/diagnostico.py` para revisar Windows, escritura de datos, DPAPI, núcleo C, Tesseract, Ollama y el modelo seleccionado.
+- La interfaz muestra el botón **Diagnóstico** y un diálogo con estado, detalle y siguiente paso para cada componente.
+- La comprobación corre fuera del hilo gráfico y no inicia descargas automáticamente.
+- Si Ollama o el modelo faltan, el OCR y **Texto propio** siguen disponibles; la interfaz explica cómo preparar la IA.
+- Se añadieron tres pruebas del diagnóstico y una comprobación de interfaz; la suite pasó 22 pruebas.
+
+**Resumen al terminar este cambio:** el primer arranque identifica las dependencias faltantes sin cerrar la aplicación y mantiene disponible la lectura OCR cuando la IA todavía no está preparada.
 
 ### 2026-09-30 — Estado actual, modelos y limpieza
 

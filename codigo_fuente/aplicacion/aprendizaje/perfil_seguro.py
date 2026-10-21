@@ -228,3 +228,9 @@ class PerfilSeguro:
             "palabras_dificiles": [palabra for palabra, _, _ in practicas[:8]],
             "historial_reciente": list(perfil["historial"][-8:]),
         }
+
+    def comprobar_proteccion(self) -> bool:
+        """Comprueba DPAPI en memoria sin crear ni modificar el perfil del usuario."""
+        prueba = b"LingoLens-DPAPI"
+        with self._bloqueo:
+            return _desproteger(_proteger(prueba)) == prueba

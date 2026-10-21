@@ -14,6 +14,8 @@ En la ventana:
 4. Abre la pestaña **Conversar** para practicar o preguntar sobre gramática. Desde esa pestaña puedes cambiar el modelo y el nivel A1–C1; al cambiar el nivel, empieza un contexto nuevo para no arrastrar instrucciones anteriores. Escribe y pulsa **Enter** para enviar; usa **Shift+Enter** para dejar una línea nueva. La interfaz indica si el modelo es local o cloud.
 5. Abre **Mi progreso** para consultar actividad, palabras que conviene practicar y guardar vocabulario manualmente.
 
+Pulsa **Diagnóstico** junto al estado de la IA para comprobar Windows, el almacenamiento local, el perfil cifrado, la DLL C, Tesseract, Ollama y el modelo elegido. Si Ollama no está disponible, LingoLens conserva el OCR y muestra cómo resolver la conexión.
+
 El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente se conecta al servicio local de Ollama; si eliges un modelo `:cloud`, Ollama puede enviarle el texto a su servicio cloud. El nivel y el vocabulario compatible se conservan en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`. Las métricas de aprendizaje se guardan cifradas en `%LOCALAPPDATA%\LingoLens\perfil_aprendizaje.seguro` mediante DPAPI del usuario actual de Windows; el archivo no contiene el texto completo de la pantalla ni de las conversaciones.
 
 ## Preparar el código fuente en Windows
@@ -40,7 +42,7 @@ Las pruebas no necesitan abrir la interfaz ni conectarse a Ollama. Comprueban el
 .\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
 ```
 
-Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evitar otra dependencia.
+Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evitar otra dependencia. La suite actual contiene 22 pruebas.
 
 ## Qué hay en el código
 
@@ -49,6 +51,7 @@ Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evita
 - `aplicacion/ia/asistente.py`: pide al modelo seleccionado en Ollama una traducción, una explicación y respuestas para la conversación.
 - `aplicacion/aprendizaje/registro.py`: conserva el nivel y el vocabulario local existente en SQLite.
 - `aplicacion/aprendizaje/perfil_seguro.py`: cifra métricas de aprendizaje y actividad con DPAPI de Windows.
+- `aplicacion/diagnostico.py`: comprueba las dependencias de primer arranque sin detener la aplicación.
 - `aplicacion/interfaz/ventana.py`: muestra resultados y ejecuta el trabajo lento en segundo plano.
 - `construir.ps1`, `empaquetar.ps1` y `distribuir.ps1`: compilan C, empaquetan la aplicación y crean una distribución limpia.
 - `.github/workflows/pruebas.yml`: ejecuta las pruebas y comprobaciones en cada cambio de GitHub.

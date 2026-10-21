@@ -9,6 +9,13 @@
 5. `aplicacion/ia/asistente.py` envía el texto al servicio de Ollama mediante su API local. El modelo devuelve la traducción y una explicación; los modelos `:cloud` pueden procesar el texto en Ollama Cloud.
 6. `aplicacion/aprendizaje/registro.py` conserva el nivel y el vocabulario local para el contexto de conversación.
 7. `aplicacion/aprendizaje/perfil_seguro.py` cifra las métricas de práctica, las palabras repetidas y el historial breve de actividad con DPAPI de Windows. Guarda señales resumidas, no el texto completo.
+8. `aplicacion/diagnostico.py` comprueba las piezas necesarias para cada etapa y devuelve resultados que la interfaz puede mostrar sin lanzar excepciones al hilo gráfico.
+
+## Diagnóstico y modo degradado
+
+La comprobación de primer arranque se ejecuta en un `Trabajo`, igual que OCR y las peticiones a Ollama. Revisa el sistema operativo, la carpeta de datos, DPAPI, la DLL C, Tesseract, el servidor Ollama y el modelo seleccionado. Cada resultado tiene una clave, un estado, un detalle y una solución breve.
+
+La ausencia de Ollama o de un modelo se considera una advertencia porque no impide capturar la pantalla ni usar **Texto propio**. La interfaz conserva el OCR, deja el botón **Diagnóstico** disponible y ofrece **Preparar IA local** para resolver el componente que falta.
 
 ## Cómo funciona la conversación
 
