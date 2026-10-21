@@ -20,7 +20,7 @@ Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etique
 - `Trabajo` y `closeEvent`: se cancelan señales pendientes, se limpian trabajos en cola y se espera brevemente a las tareas activas antes de liberar el núcleo.
 - `test_interfaz.py` y `test_perfil_seguro.py`: se probaron la interfaz en modo `offscreen`, el guardado de vocabulario y la persistencia cifrada.
 - `.github/workflows/pruebas.yml`: GitHub compila C, instala dependencias, ejecuta la suite, compila Python y revisa el parche en cada cambio.
-- `distribuir.ps1`: automatiza el ZIP limpio excluyendo entorno virtual, compilaciones, Tesseract extraído y cachés.
+- `distribuir.ps1`: automatiza el ZIP limpio excluyendo entorno virtual, compilaciones, Tesseract extraído y cachés; `LingoLens.exe` queda como primera entrada del archivo.
 - La suite pasó 19 pruebas; también pasaron `compileall`, la compilación C y una prueba real del script de distribución con 41 archivos.
 
 **Resumen del proyecto:** el núcleo tiene memoria aislada por instancia, el cierre libera recursos con más seguridad, el usuario dispone de un historial de aprendizaje cifrado y GitHub ya tiene una ruta automática para detectar regresiones.
