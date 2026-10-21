@@ -1,4 +1,25 @@
+import subprocess
 import unittest
+from pathlib import Path
+
+
+RAIZ = Path(__file__).resolve().parents[1]
+DLL = RAIZ / "codigo_fuente" / "nucleo" / "bin" / "nucleo.dll"
+if not DLL.is_file():
+    subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(RAIZ / "codigo_fuente" / "construir.ps1"),
+        ],
+        cwd=RAIZ / "codigo_fuente",
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 from aplicacion.puente_nucleo import Nucleo
 

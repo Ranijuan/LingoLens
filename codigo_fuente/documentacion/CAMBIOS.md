@@ -7,6 +7,7 @@ Las horas corresponden a America/Bogota (UTC−05:00). El proyecto no tiene hist
 - Se actualizó el README principal para separar la descarga de la aplicación desde Releases de la preparación del código fuente.
 - Se documentó el comando de pruebas y se explicó que el ejecutable no forma parte del historial normal del repositorio.
 - Se añadieron siete pruebas con `unittest` para SQLite, respuestas JSON de Ollama, validaciones del asistente y detección de cambios del núcleo C.
+- La prueba del núcleo C compila automáticamente `nucleo.dll` si el repositorio recién clonado todavía no tiene la DLL.
 - Se corrigió el cierre de conexiones SQLite con un gestor de contexto; esto evita dejar el archivo de aprendizaje bloqueado en Windows.
 - Las pruebas pasan sin abrir la interfaz ni conectarse a Ollama.
 
