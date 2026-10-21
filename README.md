@@ -2,9 +2,11 @@
 
 Aplicación de escritorio para leer texto en inglés o español desde la pantalla, traducirlo y aprender vocabulario a tu nivel. La interfaz está en español y es sencilla. La vista pequeña es una captura real del escritorio; no se usan imágenes generadas.
 
-## Ejecutar
+## Descargar y ejecutar la aplicación
 
-Abre `LingoLens.exe`. En la ventana:
+La aplicación lista para usar se descarga desde la [Release más reciente](https://github.com/Ranijuan/LingoLens/releases/latest). Descarga `LingoLens-GitHub-v2.zip`, extráelo y abre `LingoLens.exe`.
+
+En la ventana:
 
 1. Selecciona el idioma que aparece en pantalla y tu nivel.
 2. Pulsa **Iniciar lectura**.
@@ -13,11 +15,12 @@ Abre `LingoLens.exe`. En la ventana:
 
 El OCR se realiza con Tesseract incluido en el ejecutable. Las capturas no se guardan en disco; una vista previa permanece visible mientras usas la app. El asistente se conecta al servicio local de Ollama; si eliges un modelo `:cloud`, Ollama puede enviarle el texto a su servicio cloud. El nivel y los registros de vocabulario existentes se conservan en `%LOCALAPPDATA%\LingoLens\aprendizaje.sqlite3`.
 
-## Preparar el proyecto en Windows
+## Preparar el código fuente en Windows
 
-Necesitas Python 3.14, GCC de MinGW-w64, Tesseract instalado y Ollama. En PowerShell, desde la carpeta `codigo_fuente`:
+Necesitas Python 3.14, GCC de MinGW-w64, Tesseract instalado y Ollama. En PowerShell, desde la raíz del repositorio:
 
 ```powershell
+cd codigo_fuente
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ollama pull qwen2.5:1.5b
@@ -26,6 +29,16 @@ ollama pull qwen2.5:1.5b
 ```
 
 El resultado es `dist\LingoLens.exe`, un único archivo que contiene Python, PySide6, el núcleo C, Tesseract y los datos OCR en inglés y español. PyInstaller extrae sus componentes a una carpeta temporal al abrirse; por eso el primer inicio puede tardar más. Ollama y el modelo de IA permanecen instalados por separado para no añadir casi 1 GB al ejecutable. Si el modelo falta, la app muestra **Preparar IA local**.
+
+## Ejecutar las pruebas
+
+Las pruebas no necesitan abrir la interfaz ni conectarse a Ollama. Comprueban el almacenamiento local, la interpretación de respuestas de la IA y el núcleo C:
+
+```powershell
+python -m unittest discover -s tests -t . -v
+```
+
+Se usa `unittest`, incluido en Python, para mantener las pruebas ligeras y evitar otra dependencia.
 
 ## Qué hay en el código
 

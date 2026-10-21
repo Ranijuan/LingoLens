@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from aplicacion.rutas import carpeta_datos
@@ -15,11 +17,16 @@ class RegistroAprendizaje:
         self.ruta = carpeta_datos() / "aprendizaje.sqlite3"
         self._crear_tablas()
 
-    def _conectar(self) -> sqlite3.Connection:
+    @contextmanager
+    def _conectar(self) -> Iterator[sqlite3.Connection]:
         conexion = sqlite3.connect(self.ruta, timeout=5)
         conexion.execute("PRAGMA journal_mode=WAL")
         conexion.execute("PRAGMA busy_timeout=5000")
-        return conexion
+        try:
+            with conexion:
+                yield conexion
+        finally:
+            conexion.close()
 
     def _crear_tablas(self) -> None:
         with self._conectar() as db:

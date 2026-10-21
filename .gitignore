@@ -6,3 +6,5 @@ codigo_fuente/recursos/tesseract/
 codigo_fuente/**/__pycache__/
 codigo_fuente/**/*.py[cod]
 codigo_fuente/**/*.log
+tests/**/__pycache__/
+tests/**/*.py[cod]
