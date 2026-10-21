@@ -2,6 +2,13 @@
 
 Las horas corresponden a America/Bogota (UTC−05:00). El historial y las etiquetas de versión están publicados en GitHub.
 
+## 2026-10-21 13:59 · Preparación de LingoLens v1.2.0
+
+- `nucleo.c`: la DLL informa `1.2.0`, que identifica la distribución con diagnóstico de primer arranque.
+- La próxima release incluirá el ejecutable reconstruido y el ZIP limpio con esta fase.
+
+**Resumen del cambio:** el número de versión queda alineado antes de reconstruir y publicar el ejecutable actualizado.
+
 ## 2026-10-21 13:57 · Diagnóstico de primer arranque y modo degradado
 
 - `aplicacion/diagnostico.py`: se añadieron comprobaciones de Windows, escritura local, DPAPI, núcleo C, Tesseract, Ollama y modelo instalado. Las comprobaciones devuelven estados y soluciones sin lanzar errores a la interfaz.
