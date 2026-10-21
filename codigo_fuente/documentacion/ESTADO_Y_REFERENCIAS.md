@@ -9,7 +9,7 @@ LingoLens lee texto visible en la pantalla, lo traduce, explica errores de gram�
 
 - **Carpeta del proyecto:** `C:\Users\PC_Juancho\proyectos\LingoLens`.
 - **Repositorio de LingoLens:** [github.com/Ranijuan/LingoLens](https://github.com/Ranijuan/LingoLens), con código fuente y workflow de pruebas.
-- **Release distribuida actualmente:** [LingoLens v1.3.0](https://github.com/Ranijuan/LingoLens/releases/tag/v1.3.0), con `LingoLens.exe` y el ZIP de distribución. La versión v1.4.0 queda preparada en este cambio y se publicará después de reconstruir y verificar el ejecutable.
+- **Release distribuida actualmente:** [LingoLens v1.4.0](https://github.com/Ranijuan/LingoLens/releases/tag/v1.4.0), con `LingoLens.exe` y el ZIP de distribución. La release se publica después de verificar el ejecutable y el workflow de GitHub Actions.
 - **Sistema de construcción observado:** Windows 11, Python 3.14.7 y MinGW-w64 GCC 16.1.0.
 
 Las primeras fechas históricas de este documento provienen de las fechas de modificación de los archivos; las entregas posteriores se relacionan con commits y releases publicados.
